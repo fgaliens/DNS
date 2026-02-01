@@ -43,8 +43,7 @@
     "IpV6RoutingSubnet": 96,
     "HostNames": {
       "ByFullMatch": [
-        "whoer.net",
-        "rutracker.net"
+        "whoer.net"
       ],
       "BySubstring": [
         "youtube",
@@ -55,6 +54,7 @@
         "yt.be",
         "ytimg.com",
         "yt3.googleusercontent.com",
+        
         "insta",
         "bookstagram.com",
         "carstagram.com",
@@ -70,7 +70,98 @@
         "intagrm.com",
         "intgram.com",
         "kingstagram.com",
-        "lnstagram-help.com"
+        "lnstagram-help.com",
+        "graph.instagram.com",
+        "graph-fallback.instagram.com",
+
+        "wa.me",
+        "whatsapp-plus.info",
+        "whatsapp-plus.me",
+        "whatsapp-plus.net",
+        "whatsapp.cc",
+        "whatsapp.com",
+        "whatsapp.info",
+        "whatsapp.net",
+        "whatsapp.org",
+        "whatsapp.tv",
+        "whatsappbrand.com",
+
+        "ads-twitter.com",
+        "cms-twdigitalassets.com",
+        "periscope.tv",
+        "pscp.tv",
+        "t.co",
+        "tellapart.com",
+        "tweetdeck.com",
+        "twimg.com",
+        "twitpic.com",
+        "twitter.biz",
+        "twitter.com",
+        "twitter.jp",
+        "twitter.map.fastly.net",
+        "twittercommunity.com",
+        "twitterflightschool.com",
+        "twitterinc.com",
+        "twitteroauth.com",
+        "twitterstat.us",
+        "twtrdns.net",
+        "twttr.com",
+        "twttr.net",
+        "twvid.com",
+        "vine.co",
+        "x.com",
+        
+        "grok.com",
+        "grok.x.com",
+        "x.ai",
+
+        "redd.it",
+        "reddit.app.link",
+        "reddit.com",
+        "redditblog.com",
+        "reddithelp.com",
+        "redditinc.com",
+        "redditmail.com",
+        "redditmedia.com",
+        "redditspace.com",
+        "redditstatic.com",
+        "redditstatus.com",
+        "reddit.map.fastly.net",
+
+        "maintracker.org",
+        "rutracker.cc",
+        "rutracker.cr",
+        "rutracker.me",
+        "rutracker.net",
+        "rutracker.nl",
+        "rutracker.org",
+        "rutrk.org",
+
+        "flibusta.is",
+        "flisland.net",
+
+        "xv-ru.com",
+        "xvideos-ar.com",
+        "xvideos-cdn.com",
+        "xvideos-india.com",
+        "xvideos.com",
+
+        "xhamster.com",
+        "xhamster.desi",
+        "xhamster.xxx",
+        "xhamster18.com",
+        "xhamster18.desi",
+        "xhamsterlive.com",
+        "xhcdn.com,",
+        "collector.xhamster.com",
+
+        "meduza.io",
+        "meduza-flutter.firebaseapp.com",
+
+        "medium.com",
+        "medium.systems",
+        
+        "wvids.com"
       ]
     }
   }
