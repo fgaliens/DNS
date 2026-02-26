@@ -7,7 +7,7 @@ namespace Charon.Dns.Settings;
 public record RoutingSettings : ISettings<RoutingSettings>
 {
     public required IReadOnlyCollection<RoutingSettingsItem> Items { get; init; }
-    public required IReadOnlyCollection<string> BlockedHostNames { get; init; }
+    public required IEnumerable<string> BlockedHostNames { get; init; }
 
     public static RoutingSettings Initialize(IConfiguration config)
     {
@@ -20,8 +20,7 @@ public record RoutingSettings : ISettings<RoutingSettings>
             .GetSection("BlockedHostNames")
             .GetChildren()
             .Select(x => x.GetSectionValue())
-            .TryResolveDataFromFiles()
-            .ToArray();
+            .TryResolveDataFromFiles();
 
         var routingSettingsItems = new List<RoutingSettingsItem>();
         foreach (var routingSectionItem in routingSectionItems)
