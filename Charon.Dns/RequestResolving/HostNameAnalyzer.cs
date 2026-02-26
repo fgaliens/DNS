@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using Charon.Dns.Extensions;
@@ -9,7 +10,7 @@ namespace Charon.Dns.RequestResolving;
 public class HostNameAnalyzer : IHostNameAnalyzer
 {
     private readonly FrozenDictionary<string, SecuredConnectionParams> _domainMatchedHostnames;
-    private readonly (string HostName, SecuredConnectionParams Params)[] _substringMatchedHostnames;
+    private readonly ConcurrentDictionary<string, SecuredConnectionParams?> _substringMatchedHostnames = new(StringComparer.OrdinalIgnoreCase);
     private readonly FrozenSet<string> _blockedHostnames;
     private readonly ILogger _logger;
 
@@ -46,13 +47,24 @@ public class HostNameAnalyzer : IHostNameAnalyzer
         
         logger.Information("Found {ItemsCount} host names to be secured (by domain name)", _domainMatchedHostnames.Count);
 
-        _substringMatchedHostnames = routingSettings
+        var substringMatchedHostnames = routingSettings
             .Items
             .TurnOut(x => x.MatchedBySubstringHostNames)
-            .Select(x => (x.Key, securedConnectionParamsCache[x.Value]))
-            .ToArray();
+            .Select(x => (x.Key, securedConnectionParamsCache[x.Value]));
+
+        var hostNameSubstringsCount = 0;
+        foreach ((string hostNameSubstring, SecuredConnectionParams connectionParams) in substringMatchedHostnames)
+        {
+            for (int i = 1; i < hostNameSubstring.Length; i++)
+            {
+                _substringMatchedHostnames.TryAdd(hostNameSubstring[..i], null);
+            }
+            _substringMatchedHostnames.TryAdd(hostNameSubstring, connectionParams);
+            hostNameSubstringsCount++;
+        }
         
-        logger.Information("Found {ItemsCount} host names to be secured (by domain substring)", _substringMatchedHostnames.Length);
+        logger.Information("Found {ItemsCount} host names to be secured (by domain substring; indexes: {IndexesCount})", 
+            hostNameSubstringsCount, _substringMatchedHostnames.Count);
         
         _logger = logger;
     }
@@ -85,15 +97,22 @@ public class HostNameAnalyzer : IHostNameAnalyzer
             return true;
         }
         
-        foreach (var hostNameBySubstring in _substringMatchedHostnames)
+        var substringIndexesLookup = _substringMatchedHostnames.GetAlternateLookup<ReadOnlySpan<char>>();
+        for (int i = 0; i < domainName.Length; i++)
         {
-            if (domainName.Contains(hostNameBySubstring.HostName, StringComparison.OrdinalIgnoreCase))
+            for (int j = i + 1; j < domainName.Length - i; j++)
             {
-                _logger.Debug("Host name '{Host}' should be secured because it contains {Substring}", 
-                    domainName, hostNameBySubstring);
-                
-                connectionParams = hostNameBySubstring.Params;
-                return true;
+                var domainNameSubstring = domainName.AsSpan(i..j);
+                if (!substringIndexesLookup.TryGetValue(domainNameSubstring, out var foundedParams))
+                {
+                    break;
+                }
+
+                if (foundedParams is not null)
+                {
+                    connectionParams = foundedParams;
+                    return true;
+                }
             }
         }
 
