@@ -17,13 +17,30 @@ namespace Charon.Dns.Interceptors
         
         public Task Handle(IRequest request, IResponse response, CancellationToken token = default)
         {
+            var previousHostNameWasSecured = false;
+            Domain? previousHostName = null;
+            SecuredConnectionParams? connectionParams = null;
+            
             foreach (var answer in response.AnswerRecords)
             {
-                if (hostNameAnalyzer.ShouldBeSecured(answer.Name.ToString(), out var connectionParams))
+                var shouldBeSecured = false;
+
+                if (answer.Name.Equals(previousHostName))
+                {
+                    shouldBeSecured = previousHostNameWasSecured;
+                }
+                else
+                {
+                    shouldBeSecured = hostNameAnalyzer.ShouldBeSecured(answer.Name.ToString(), out connectionParams);
+                    previousHostName = answer.Name;
+                    previousHostNameWasSecured = shouldBeSecured;
+                }
+                
+                if (shouldBeSecured)
                 {
                     if (answer.Type is RecordType.A)
                     {
-                        var ipV4Network = new IpV4Network(answer.Data, connectionParams.IpV4RoutingSubnet)
+                        var ipV4Network = new IpV4Network(answer.Data, connectionParams!.IpV4RoutingSubnet)
                             .MinAddress;
                         
                         if (_addedIpV4Networks.TryAdd(ipV4Network, true))
@@ -37,7 +54,7 @@ namespace Charon.Dns.Interceptors
                     }
                     else if (answer.Type is RecordType.AAAA)
                     {
-                        var ipV6Network = new IpV6Network(answer.Data, connectionParams.IpV6RoutingSubnet)
+                        var ipV6Network = new IpV6Network(answer.Data, connectionParams!.IpV6RoutingSubnet)
                             .MinAddress;
 
                         if (_addedIpV6Networks.TryAdd(ipV6Network, true))
