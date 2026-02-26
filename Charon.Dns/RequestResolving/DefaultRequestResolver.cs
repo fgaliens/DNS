@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
@@ -26,10 +27,22 @@ namespace Charon.Dns.RequestResolving
         public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default)
         {
             _logger.Debug("Resolving {Request} by default", request);
+
+            var stopwatch = Stopwatch.StartNew();
             
-            var responseTasks = _innerResolvers.Select(x => x.Resolve(request, cancellationToken));
-            var response = await Task.WhenAny(responseTasks);
-            return await response;
+            try
+            {
+                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, cancellationToken));
+                var response = await Task.WhenAny(responseTasks);
+                return await response;
+            }
+            finally
+            {
+                _logger.Debug(
+                    "{Source}: request resolved by chain in {ElapsedMilliseconds}", 
+                    nameof(DefaultRequestResolver), 
+                    stopwatch.ElapsedMilliseconds);
+            }
         }
     }
 }
