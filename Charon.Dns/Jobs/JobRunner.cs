@@ -30,7 +30,14 @@ public class JobRunner : IJobRunner
             {
                 var localJob = job;
                 var jobType = localJob.GetType();
-                _logger.Debug("Job {JobName} started", jobType);
+
+                if (localJob.Period <= TimeSpan.Zero)
+                {
+                    _logger.Information("Job {JobName} won't be executed due to its period", jobType);
+                    return;
+                }
+                
+                _logger.Information("Job {JobName} started", jobType);
                 
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
