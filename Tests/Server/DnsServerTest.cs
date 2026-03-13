@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
@@ -21,24 +22,27 @@ namespace Tests.Server
         {
             await Create(new IPAddressRequestResolver(), async server =>
             {
-                DnsServer.RequestedEventArgs requestedEvent = null;
-                DnsServer.RespondedEventArgs respondedEvent = null;
-                DnsServer.ErroredEventArgs erroredEvent = null;
+                OnRequestEventArgs requestedEvent = default;
+                OnResponseEventArgs respondedEvent = default;
+                OnExceptionEventArgs? erroredEvent = default;
 
-                server.Requested += (sender, e) =>
+                server.Subscribe(AsyncObserver.Create<OnRequestEventArgs>(args =>
                 {
-                    requestedEvent = e;
-                };
+                    requestedEvent = args;
+                    return Task.CompletedTask;
+                }));
 
-                server.Responded += (sender, e) =>
+                server.Subscribe(AsyncObserver.Create<OnResponseEventArgs>(args =>
                 {
-                    respondedEvent = e;
-                };
+                    respondedEvent = args;
+                    return Task.CompletedTask;
+                }));
 
-                server.Errored += (sender, e) =>
+                server.Subscribe(AsyncObserver.Create<OnExceptionEventArgs>(args =>
                 {
-                    erroredEvent = e;
-                };
+                    erroredEvent = args;
+                    return Task.CompletedTask;
+                }));
 
                 IRequest clientRequest = new Request();
                 Question clientRequestQuestion = new Question(new Domain("google.com"), RecordType.A);
@@ -108,7 +112,7 @@ namespace Tests.Server
             TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
             DnsServer server = new DnsServer(requestResolver);
 
-            server.Listening += async (sender, _) =>
+            server.Subscribe(AsyncObserver.Create<OnListeningEventArgs>(async (_) =>
             {
                 try
                 {
@@ -123,7 +127,7 @@ namespace Tests.Server
                 {
                     server.Dispose();
                 }
-            };
+            }));
 
             await Task.WhenAll(server.Listen(PORT), tcs.Task).ConfigureAwait(false);
         }

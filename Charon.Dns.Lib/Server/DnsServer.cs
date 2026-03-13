@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.IO;
+using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Client;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
@@ -12,31 +13,35 @@ using Charon.Dns.Lib.Protocol.Utils;
 
 namespace Charon.Dns.Lib.Server
 {
-    public class DnsServer : IDisposable
+    public class DnsServer 
+        : IAsyncObservable<OnRequestEventArgs>, 
+            IAsyncObservable<OnResponseEventArgs>, 
+            IAsyncObservable<OnExceptionEventArgs>, 
+            IAsyncObservable<OnListeningEventArgs>, 
+            IDisposable
     {
-        private const int SIO_UDP_CONNRESET = unchecked((int)0x9800000C);
-        private const int DEFAULT_PORT = 53;
-        private const int UDP_TIMEOUT = 2000;
+        private const int SioUdpConnreset = unchecked((int)0x9800000C);
+        private const int DefaultPort = 53;
+        private const int UdpTimeout = 2000;
 
-        public event EventHandler<RequestedEventArgs> Requested;
-        public event EventHandler<RespondedEventArgs> Responded;
-        public event EventHandler<EventArgs> Listening;
-        public event EventHandler<ErroredEventArgs> Errored;
-
-        private bool run = true;
-        private bool disposed = false;
-        private UdpClient udp;
-        private IRequestResolver resolver;
+        private bool _run = true;
+        private bool _disposed;
+        private UdpClient _udp;
+        private readonly IRequestResolver _resolver;
+        private readonly AsyncObservable<OnRequestEventArgs> _requestEventObservable = new();
+        private readonly AsyncObservable<OnResponseEventArgs> _responseEventObservable = new();
+        private readonly AsyncObservable<OnExceptionEventArgs> _exceptionEventObservable = new();
+        private readonly AsyncObservable<OnListeningEventArgs> _listeningEventObservable = new();
 
         public DnsServer(IRequestResolver resolver, IPEndPoint endServer) :
             this(new FallbackRequestResolver(resolver, new UdpRequestResolver(endServer)))
         { }
 
-        public DnsServer(IRequestResolver resolver, IPAddress endServer, int port = DEFAULT_PORT) :
+        public DnsServer(IRequestResolver resolver, IPAddress endServer, int port = DefaultPort) :
             this(resolver, new IPEndPoint(endServer, port))
         { }
 
-        public DnsServer(IRequestResolver resolver, string endServer, int port = DEFAULT_PORT) :
+        public DnsServer(IRequestResolver resolver, string endServer, int port = DefaultPort) :
             this(resolver, IPAddress.Parse(endServer), port)
         { }
 
@@ -44,20 +49,20 @@ namespace Charon.Dns.Lib.Server
             this(new UdpRequestResolver(endServer))
         { }
 
-        public DnsServer(IPAddress endServer, int port = DEFAULT_PORT) :
+        public DnsServer(IPAddress endServer, int port = DefaultPort) :
             this(new IPEndPoint(endServer, port))
         { }
 
-        public DnsServer(string endServer, int port = DEFAULT_PORT) :
+        public DnsServer(string endServer, int port = DefaultPort) :
             this(IPAddress.Parse(endServer), port)
         { }
 
         public DnsServer(IRequestResolver resolver)
         {
-            this.resolver = resolver;
+            _resolver = resolver;
         }
 
-        public Task Listen(int port = DEFAULT_PORT, IPAddress ip = null)
+        public Task Listen(int port = DefaultPort, IPAddress ip = null)
         {
             return Listen(new IPEndPoint(ip ?? IPAddress.Any, port));
         }
@@ -68,20 +73,20 @@ namespace Charon.Dns.Lib.Server
 
             TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
 
-            if (run)
+            if (_run)
             {
                 try
                 {
-                    udp = new UdpClient(endpoint);
+                    _udp = new UdpClient(endpoint);
 
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
-                        udp.Client.IOControl(SIO_UDP_CONNRESET, new byte[4], new byte[4]);
+                        _udp.Client.IOControl(SioUdpConnreset, new byte[4], new byte[4]);
                     }
                 }
                 catch (SocketException e)
                 {
-                    OnError(e);
+                    await OnError(e);
                     return;
                 }
             }
@@ -93,25 +98,30 @@ namespace Charon.Dns.Lib.Server
                 try
                 {
                     IPEndPoint remote = new IPEndPoint(0, 0);
-                    data = udp.EndReceive(result, ref remote);
+                    data = _udp.EndReceive(result, ref remote);
                     HandleRequest(data, remote);
                 }
                 catch (ObjectDisposedException)
                 {
                     // run should already be false
-                    run = false;
+                    _run = false;
                 }
                 catch (SocketException e)
                 {
-                    OnError(e);
+                    _ = OnError(e);
                 }
 
-                if (run) udp.BeginReceive(ReceiveCallback, null);
+                if (_run) _udp.BeginReceive(ReceiveCallback, null);
                 else tcs.SetResult(null);
             }
 
-            udp.BeginReceive(ReceiveCallback, null);
-            OnEvent(Listening, EventArgs.Empty);
+            _udp.BeginReceive(ReceiveCallback, null);
+
+            await _listeningEventObservable.SendEvent(new OnListeningEventArgs
+            {
+                Sender = this,
+            });
+            
             await tcs.Task.ConfigureAwait(false);
         }
 
@@ -127,21 +137,24 @@ namespace Charon.Dns.Lib.Server
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposed)
+            if (!_disposed)
             {
-                disposed = true;
+                _disposed = true;
 
                 if (disposing)
                 {
-                    run = false;
-                    udp?.Dispose();
+                    _run = false;
+                    _udp?.Dispose();
                 }
             }
         }
 
-        private void OnError(Exception e)
+        private async Task OnError(Exception e)
         {
-            OnEvent(Errored, new ErroredEventArgs(e));
+            await _exceptionEventObservable.SendEvent(new OnExceptionEventArgs
+            {
+                Exception = e,
+            });
         }
 
         private async void HandleRequest(byte[] data, IPEndPoint remote)
@@ -151,22 +164,32 @@ namespace Charon.Dns.Lib.Server
             try
             {
                 request = Request.FromArray(data);
-                OnEvent(Requested, new RequestedEventArgs(request, data, remote));
 
-                IResponse response = await resolver.Resolve(request).ConfigureAwait(false);
+                await _requestEventObservable.SendEvent(new OnRequestEventArgs
+                {
+                    Request = request,
+                    Remote = remote,
+                });
 
-                // TODO: Async events
-                OnEvent(Responded, new RespondedEventArgs(request, response, data, remote));
-                await udp
+                IResponse response = await _resolver.Resolve(request).ConfigureAwait(false);
+
+                await _responseEventObservable.SendEvent(new OnResponseEventArgs
+                {
+                    Request = request,
+                    Response = response,
+                    Remote = remote,
+                });
+                
+                await _udp
                     .SendAsync(response.ToArray(), response.Size, remote)
-                    .WithCancellationTimeout(TimeSpan.FromMilliseconds(UDP_TIMEOUT)).ConfigureAwait(false);
+                    .WithCancellationTimeout(TimeSpan.FromMilliseconds(UdpTimeout)).ConfigureAwait(false);
             }
-            catch (SocketException e) { OnError(e); }
-            catch (ArgumentException e) { OnError(e); }
-            catch (IndexOutOfRangeException e) { OnError(e); }
-            catch (OperationCanceledException e) { OnError(e); }
-            catch (IOException e) { OnError(e); }
-            catch (ObjectDisposedException e) { OnError(e); }
+            catch (SocketException e) { await OnError(e); }
+            catch (ArgumentException e) { await OnError(e); }
+            catch (IndexOutOfRangeException e) { await OnError(e); }
+            catch (OperationCanceledException e) { await OnError(e); }
+            catch (IOException e) { await OnError(e); }
+            catch (ObjectDisposedException e) { await OnError(e); }
             catch (ResponseException e)
             {
                 IResponse response = e.Response;
@@ -178,70 +201,36 @@ namespace Charon.Dns.Lib.Server
 
                 try
                 {
-                    await udp
+                    await _udp
                         .SendAsync(response.ToArray(), response.Size, remote)
-                        .WithCancellationTimeout(TimeSpan.FromMilliseconds(UDP_TIMEOUT)).ConfigureAwait(false);
+                        .WithCancellationTimeout(TimeSpan.FromMilliseconds(UdpTimeout)).ConfigureAwait(false);
                 }
                 catch (SocketException) { }
                 catch (OperationCanceledException) { }
-                finally { OnError(e); }
+                finally
+                {
+                    await _exceptionEventObservable.SendEvent(new OnExceptionEventArgs
+                    {
+                        Exception = e,
+                    });
+                }
             }
-        }
-
-        public class RequestedEventArgs : EventArgs
-        {
-            public RequestedEventArgs(IRequest request, byte[] data, IPEndPoint remote)
-            {
-                Request = request;
-                Data = data;
-                Remote = remote;
-            }
-
-            public IRequest Request { get; }
-            public byte[] Data { get; }
-            public IPEndPoint Remote { get; }
-        }
-
-        public class RespondedEventArgs : EventArgs
-        {
-            public RespondedEventArgs(IRequest request, IResponse response, byte[] data, IPEndPoint remote)
-            {
-                Request = request;
-                Response = response;
-                Data = data;
-                Remote = remote;
-            }
-
-            public IRequest Request { get; }
-            public IResponse Response { get; }
-            public byte[] Data { get; }
-            public IPEndPoint Remote { get; }
-        }
-
-        public class ErroredEventArgs : EventArgs
-        {
-            public ErroredEventArgs(Exception e)
-            {
-                Exception = e;
-            }
-
-            public Exception Exception { get; }
         }
 
         public class FallbackRequestResolver : IRequestResolver
         {
-            private IRequestResolver[] resolvers;
+            private readonly IRequestResolver[] _resolvers;
 
             public FallbackRequestResolver(params IRequestResolver[] resolvers)
             {
-                this.resolvers = resolvers;
+                _resolvers = resolvers;
             }
 
             public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
             {
                 IResponse response = null;
 
-                foreach (IRequestResolver resolver in resolvers)
+                foreach (IRequestResolver resolver in _resolvers)
                 {
                     response = await resolver.Resolve(request, cancellationToken).ConfigureAwait(false);
                     if (response.AnswerRecords.Count > 0) break;
@@ -249,6 +238,26 @@ namespace Charon.Dns.Lib.Server
 
                 return response;
             }
+        }
+
+        public IAsyncDisposable Subscribe(IAsyncObserver<OnResponseEventArgs> observer)
+        {
+            return _responseEventObservable.Subscribe(observer);
+        }
+
+        public IAsyncDisposable Subscribe(IAsyncObserver<OnRequestEventArgs> observer)
+        {
+            return _requestEventObservable.Subscribe(observer);
+        }
+
+        public IAsyncDisposable Subscribe(IAsyncObserver<OnExceptionEventArgs> observer)
+        {
+            return _exceptionEventObservable.Subscribe(observer);
+        }
+
+        public IAsyncDisposable Subscribe(IAsyncObserver<OnListeningEventArgs> observer)
+        {
+            return _listeningEventObservable.Subscribe(observer);
         }
     }
 }

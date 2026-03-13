@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Charon.Dns.Interceptors;
+using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Server;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Settings;
@@ -10,7 +11,7 @@ namespace Charon.Dns
 {
     public class SmartDnsServer(
         ISmartRequestResolver smartRequestResolver,
-        IRequestInterceptor requestInterceptor,
+        IResponseInterceptor responseInterceptor,
         ListeningSettings listeningSettings,
         DnsRecordsSettings dnsRecords,
         ILogger logger)
@@ -28,15 +29,13 @@ namespace Charon.Dns
                 smartRequestResolver);
             
             using var server = new DnsServer(requestResolvers);
-            server.Errored += (_, eventArgs) =>
+            server.Subscribe(AsyncObserver.Create<OnExceptionEventArgs>(eventArgs =>
             {
                 logger.Error(eventArgs.Exception, "Error occured");
-            };
+                return Task.CompletedTask;
+            }));
 
-            server.Responded += (_, eventArgs) =>
-            {
-                requestInterceptor.Handle(eventArgs.Request, eventArgs.Response, CancellationToken.None);
-            };
+            server.Subscribe(responseInterceptor);
 
             var listeningTasks = new List<Task>();
             foreach (var listeningSettingsItem in listeningSettings.Items)

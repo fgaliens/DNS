@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Net;
 using Charon.Dns.RequestResolving;
@@ -6,11 +6,11 @@ using Charon.Dns.Routing;
 
 namespace Charon.Dns.Interceptors
 {
-    public class RequestInterceptor(
+    public class ResponseInterceptor(
         IHostNameAnalyzer hostNameAnalyzer,
         IRouteManager<IpV4Network> ipV4NetworkManager,
         IRouteManager<IpV6Network> ipV6NetworkManager) 
-        : IRequestInterceptor
+        : IResponseInterceptor
     {
         public async Task Handle(IRequest request, IResponse response, CancellationToken token = default)
         {
@@ -47,6 +47,16 @@ namespace Charon.Dns.Interceptors
                     }
                 }
             }
+        }
+
+        async Task IAsyncObserver<OnResponseEventArgs>.OnEvent(OnResponseEventArgs eventArgs)
+        {
+            await Handle(eventArgs.Request, eventArgs.Response);
+        }
+
+        Task IAsyncObserver<OnResponseEventArgs>.OnCompleted()
+        {
+            return Task.CompletedTask;
         }
     }
 }

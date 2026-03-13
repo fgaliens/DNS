@@ -1,9 +1,9 @@
+using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Protocol;
-using Charon.Dns.Lib.Protocol.ResourceRecords;
 
 namespace Charon.Dns.Interceptors
 {
-    public interface IRequestInterceptor
+    public interface IResponseInterceptor : IAsyncObserver<OnResponseEventArgs>
     {
         Task Handle(
             IRequest request,
