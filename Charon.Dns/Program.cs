@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 
+const string appVersion = "1.3";
+
 var config = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("settings.json")
@@ -23,6 +25,8 @@ var logger = new LoggerConfiguration()
     .WriteTo.Console()
     .MinimumLevel.Is(GetLogLevel())
     .CreateLogger();
+
+logger.Information("Starting up DNS server. Version {AppVersion}", appVersion);
 
 var serviceProvider = new ServiceCollection()
     .AddSingleton<ServiceInitializer>()
