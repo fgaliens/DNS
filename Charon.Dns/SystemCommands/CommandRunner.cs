@@ -24,6 +24,7 @@ public class CommandRunner(
 
 #if DEBUG
             logger.Warning("Execution of command '{Command}' skipped in debug mode", commandText);
+            await Task.Delay(10, token);
             return true;
 #endif
 
