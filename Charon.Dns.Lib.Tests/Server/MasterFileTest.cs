@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net;
+using System.Threading.Tasks;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
 using Charon.Dns.Lib.Server;
@@ -17,7 +18,7 @@ namespace Charon.Dns.Lib.Tests.Server
         public async Task ResolveRecord(RecordType recordType, string domain)
         {
             MasterFile masterFile = new MasterFile();
-            masterFile.AddIPAddressResourceRecord("google.com", "192.168.0.1");
+            masterFile.AddIpAddressResourceRecord("google.com", "192.168.0.1");
 
             IRequest clientRequest = new Request();
             Question clientRequestQuestion = new Question(new Domain(domain), recordType);
@@ -26,7 +27,7 @@ namespace Charon.Dns.Lib.Tests.Server
             clientRequest.Questions.Add(clientRequestQuestion);
             clientRequest.OperationCode = OperationCode.Query;
 
-            IResponse clientResponse = await masterFile.Resolve(clientRequest);
+            IResponse clientResponse = await masterFile.Resolve(clientRequest, new IPEndPoint(0x11223344, 10111));
 
             Assert.Equal(1, clientResponse.Id);
             Assert.Equal(1, clientResponse.Questions.Count);

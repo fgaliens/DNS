@@ -146,7 +146,7 @@ namespace Charon.Dns.Lib.Tests.Server
 
         private class IPAddressRequestResolver : IRequestResolver
         {
-            public Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
+            public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
             {
                 IResponse response = Response.FromRequest(request);
                 IResourceRecord record = new IpAddressResourceRecord(

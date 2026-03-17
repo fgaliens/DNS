@@ -24,14 +24,14 @@ namespace Charon.Dns.RequestResolving
                 .ToArray();
         }
 
-        public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default)
+        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default)
         {
             _logger.Debug("Resolving {Request} safely", request);
             
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, cancellationToken));
+                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, remoteEndPoint, cancellationToken));
                 var response = await Task.WhenAny(responseTasks);
                 return await response;
             }

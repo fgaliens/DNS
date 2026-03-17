@@ -1,3 +1,4 @@
+using System.Net;
 using Charon.Dns.Cache;
 using Charon.Dns.Lib.Protocol;
 
@@ -5,7 +6,7 @@ namespace Charon.Dns.RequestResolving;
 
 public class CachedRequestResolver(IDnsCache dnsCache) : ICachedRequestResolver
 {
-    public Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
+    public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default)
     {
         if (dnsCache.TryGetResponse(request, out var response))
         {

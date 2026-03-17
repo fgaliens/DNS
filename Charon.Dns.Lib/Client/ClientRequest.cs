@@ -16,6 +16,7 @@ namespace Charon.Dns.Lib.Client
     public class ClientRequest : IRequest
     {
         private const int DefaultPort = 53;
+        private static readonly IPEndPoint LocalEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
 
         private readonly IRequestResolver _resolver;
         private readonly IRequest _request;
@@ -104,7 +105,7 @@ namespace Charon.Dns.Lib.Client
         {
             try
             {
-                IResponse response = await _resolver.Resolve(this, cancellationToken).ConfigureAwait(false);
+                IResponse response = await _resolver.Resolve(this, LocalEndPoint, cancellationToken).ConfigureAwait(false);
 
                 if (response.Id != this.Id)
                 {

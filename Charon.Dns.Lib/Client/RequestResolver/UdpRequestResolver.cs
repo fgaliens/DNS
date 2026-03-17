@@ -29,7 +29,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
             this.timeout = timeout;
         }
 
-        public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
         {
             using (UdpClient udp = new UdpClient(dns.AddressFamily))
             {
@@ -47,7 +47,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
 
                 if (response.Truncated)
                 {
-                    return await fallback.Resolve(request, cancellationToken).ConfigureAwait(false);
+                    return await fallback.Resolve(request, remoteEndPoint, cancellationToken).ConfigureAwait(false);
                 }
 
                 return new ClientResponse(request, response, buffer);

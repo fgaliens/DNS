@@ -17,7 +17,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
             this.dns = dns;
         }
 
-        public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
         {
             using (TcpClient tcp = new TcpClient(dns.AddressFamily))
             {

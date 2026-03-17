@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using Charon.Dns.Cache;
 using Charon.Dns.Lib.Protocol;
 using Serilog;
@@ -12,17 +13,17 @@ namespace Charon.Dns.RequestResolving
         IDnsCache  dnsCache,
         ILogger logger) : ISmartRequestResolver
     {
-        public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default)
+        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default)
         {
-            var response = await ResolveInternal(request, cancellationToken);
+            var response = await ResolveInternal(request, remoteEndPoint, cancellationToken);
             dnsCache.AddResponse(request, response);
             return response;
         }
         
-        private async Task<IResponse> ResolveInternal(IRequest request, CancellationToken cancellationToken)
+        private async Task<IResponse> ResolveInternal(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
-
+            
             try
             {
                 var shouldBeBlocked = false;
@@ -53,11 +54,11 @@ namespace Charon.Dns.RequestResolving
                 if (shouldBeSecured)
                 {
                     logger.Information("Dns request resolving is secured ({Request})", request);
-                    return await safeRequestResolver.Resolve(request, cancellationToken);
+                    return await safeRequestResolver.Resolve(request, remoteEndPoint, cancellationToken);
                 }
 
                 logger.Debug("Dns request resolving is non secured ({Request})", request);
-                return await defaultRequestResolver.Resolve(request, cancellationToken);
+                return await defaultRequestResolver.Resolve(request, remoteEndPoint, cancellationToken);
             }
             catch (Exception e)
             {

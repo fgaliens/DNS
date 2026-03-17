@@ -1,19 +1,28 @@
+using System.Net;
 using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Net;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Routing;
+using Serilog;
 
 namespace Charon.Dns.Interceptors
 {
     public class ResponseInterceptor(
         IHostNameAnalyzer hostNameAnalyzer,
         IRouteManager<IpV4Network> ipV4NetworkManager,
-        IRouteManager<IpV6Network> ipV6NetworkManager) 
+        IRouteManager<IpV6Network> ipV6NetworkManager,
+        ILogger logger) 
         : IResponseInterceptor
     {
-        public async Task Handle(IRequest request, IResponse response, CancellationToken token = default)
+        public async Task Handle(
+            IRequest request, 
+            IResponse response,
+            IPEndPoint remoteEndPoint,
+            CancellationToken token = default)
         {
+            logger.Debug("Got request from {RemoteIp}", remoteEndPoint);
+            
             var previousHostNameWasSecured = false;
             Domain? previousHostName = null;
             SecuredConnectionParams? connectionParams = null;
@@ -51,7 +60,7 @@ namespace Charon.Dns.Interceptors
 
         async Task IAsyncObserver<OnResponseEventArgs>.OnEvent(OnResponseEventArgs eventArgs)
         {
-            await Handle(eventArgs.Request, eventArgs.Response);
+            await Handle(eventArgs.Request, eventArgs.Response, eventArgs.Remote);
         }
 
         Task IAsyncObserver<OnResponseEventArgs>.OnCompleted()

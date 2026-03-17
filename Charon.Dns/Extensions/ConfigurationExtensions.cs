@@ -27,6 +27,16 @@ public static class ConfigurationExtensions
         return value;
     }
     
+    public static string? GetOptionalSectionValue(this IConfigurationSection section)
+    {
+        return section.Value;
+    }
+    
+    public static string? GetOptionalSectionValue(this IConfigurationSection section, string key)
+    {
+        return section.GetSection(key).Value;
+    }
+    
     public static T GetSectionValue<T>(this IConfigurationSection section, string key) where T : IParsable<T>
     {
         var rawValue = section.GetSection(key).Value;

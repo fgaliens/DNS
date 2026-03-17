@@ -15,14 +15,18 @@ namespace Charon.Dns
         IResponseInterceptor responseInterceptor,
         ListeningSettings listeningSettings,
         DnsRecordsSettings dnsRecords,
+        CacheSettings cacheSettings,
         ILogger logger)
     {
         public async Task Start()
         {
-            var masterFile = new MasterFile();
+            var masterFile = new MasterFile(cacheSettings.TimeToLive);
             foreach (var aRecord in dnsRecords.ARecords)
             {
-                masterFile.AddIPAddressResourceRecord(aRecord.Name, aRecord.Address);
+                masterFile.AddIpAddressResourceRecord(
+                    aRecord.Name, 
+                    aRecord.Address,
+                    aRecord.ResolveOnlyIfRequestCameFrom);
             }
 
             var requestResolvers = new DnsServer.FallbackRequestResolver(

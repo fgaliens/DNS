@@ -11,6 +11,7 @@ namespace Charon.Dns.Settings
         {
             public required string Name { get; init; }
             public required string Address { get; init; }
+            public required string? ResolveOnlyIfRequestCameFrom { get; init; }
         }
     
         public static DnsRecordsSettings Initialize(IConfiguration config)
@@ -25,6 +26,7 @@ namespace Charon.Dns.Settings
                 {
                     Name = x.GetSectionValue("Name"),
                     Address = x.GetSectionValue("Address"),
+                    ResolveOnlyIfRequestCameFrom = x.GetOptionalSectionValue("ResolveOnlyIfRequestCameFrom"),
                 })
                 .ToArray();
 

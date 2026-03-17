@@ -171,7 +171,7 @@ namespace Charon.Dns.Lib.Server
                     Remote = remote,
                 });
 
-                IResponse response = await _resolver.Resolve(request).ConfigureAwait(false);
+                IResponse response = await _resolver.Resolve(request, remote).ConfigureAwait(false);
 
                 await _responseEventObservable.SendEvent(new OnResponseEventArgs
                 {
@@ -226,13 +226,13 @@ namespace Charon.Dns.Lib.Server
                 _resolvers = resolvers;
             }
 
-            public async Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
+            public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
             {
                 IResponse response = null;
 
                 foreach (IRequestResolver resolver in _resolvers)
                 {
-                    response = await resolver.Resolve(request, cancellationToken).ConfigureAwait(false);
+                    response = await resolver.Resolve(request, remoteEndPoint, cancellationToken).ConfigureAwait(false);
                     if (response.AnswerRecords.Count > 0) 
                         break;
                 }
