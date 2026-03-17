@@ -48,7 +48,7 @@
     }
   },
   "Cache": {
-    "TimeToLive": "00:15:00"
+    "TimeToLive": "00:05:00"
   },
   "Routing": {
     "Period": "02:00:00",

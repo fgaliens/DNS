@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 
-const string appVersion = "1.4.1";
+const string appVersion = "1.5.0";
 
 var config = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
