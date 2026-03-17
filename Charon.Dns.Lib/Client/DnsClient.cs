@@ -54,8 +54,8 @@ namespace Charon.Dns.Lib.Client
             IResponse response = await Resolve(domain, type, cancellationToken).ConfigureAwait(false);
             IList<IPAddress> ips = response.AnswerRecords
                 .Where(r => r.Type == type)
-                .Cast<IPAddressResourceRecord>()
-                .Select(r => r.IPAddress)
+                .Cast<IpAddressResourceRecord>()
+                .Select(r => r.IpAddress)
                 .ToList();
 
             if (ips.Count == 0)

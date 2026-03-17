@@ -36,7 +36,7 @@ namespace Charon.Dns.Lib.Protocol.ResourceRecords
             {
                 case RecordType.A:
                 case RecordType.AAAA:
-                    return new IPAddressResourceRecord(record);
+                    return new IpAddressResourceRecord(record);
                 case RecordType.NS:
                     return new NameServerResourceRecord(record, message, dataOffset);
                 case RecordType.CNAME:

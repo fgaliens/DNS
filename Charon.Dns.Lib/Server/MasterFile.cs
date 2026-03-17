@@ -60,7 +60,7 @@ namespace Charon.Dns.Lib.Server
 
         public void AddIPAddressResourceRecord(Domain domain, IPAddress ip)
         {
-            Add(new IPAddressResourceRecord(domain, ip, ttl));
+            Add(new IpAddressResourceRecord(domain, ip, ttl));
         }
 
         public void AddNameServerResourceRecord(string domain, string nsDomain)

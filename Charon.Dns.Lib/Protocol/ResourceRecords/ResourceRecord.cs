@@ -7,11 +7,11 @@ namespace Charon.Dns.Lib.Protocol.ResourceRecords
 {
     public class ResourceRecord : IResourceRecord
     {
-        private Domain domain;
-        private RecordType type;
-        private RecordClass klass;
-        private TimeSpan ttl;
-        private byte[] data;
+        private readonly Domain _domain;
+        private readonly RecordType _type;
+        private readonly RecordClass _recordClass;
+        private readonly TimeSpan _ttl;
+        private readonly byte[] _data;
 
         public static IList<ResourceRecord> GetAllFromArray(byte[] message, int offset, int count)
         {
@@ -56,49 +56,53 @@ namespace Charon.Dns.Lib.Protocol.ResourceRecords
             return new ResourceRecord(question.Name, data, question.Type, question.Class, ttl);
         }
 
-        public ResourceRecord(Domain domain, byte[] data, RecordType type,
-                RecordClass klass = RecordClass.IN, TimeSpan ttl = default(TimeSpan))
+        public ResourceRecord(
+            Domain domain, 
+            byte[] data, 
+            RecordType type,
+            RecordClass recordClass = RecordClass.IN, 
+            TimeSpan ttl = default(TimeSpan))
         {
-            this.domain = domain;
-            this.type = type;
-            this.klass = klass;
-            this.ttl = ttl;
-            this.data = data;
+            _domain = domain;
+            _type = type;
+            _recordClass = recordClass;
+            _ttl = ttl;
+            _data = data;
         }
 
         public Domain Name
         {
-            get { return domain; }
+            get { return _domain; }
         }
 
         public RecordType Type
         {
-            get { return type; }
+            get { return _type; }
         }
 
         public RecordClass Class
         {
-            get { return klass; }
+            get { return _recordClass; }
         }
 
         public TimeSpan TimeToLive
         {
-            get { return ttl; }
+            get { return _ttl; }
         }
 
         public int DataLength
         {
-            get { return data.Length; }
+            get { return _data.Length; }
         }
 
         public byte[] Data
         {
-            get { return data; }
+            get { return _data; }
         }
 
         public int Size
         {
-            get { return domain.Size + Tail.SIZE + data.Length; }
+            get { return _domain.Size + Tail.SIZE + _data.Length; }
         }
 
         public byte[] ToArray()
@@ -106,15 +110,15 @@ namespace Charon.Dns.Lib.Protocol.ResourceRecords
             ByteStream result = new ByteStream(Size);
 
             result
-                .Append(domain.ToArray())
+                .Append(_domain.ToArray())
                 .Append(Marshalling.Struct.GetBytes<Tail>(new Tail()
                 {
                     Type = Type,
                     Class = Class,
-                    TimeToLive = ttl,
-                    DataLength = data.Length
+                    TimeToLive = _ttl,
+                    DataLength = _data.Length
                 }))
-                .Append(data);
+                .Append(_data);
 
             return result.ToArray();
         }

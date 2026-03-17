@@ -3,7 +3,7 @@ using System.Net;
 
 namespace Charon.Dns.Lib.Protocol.ResourceRecords
 {
-    public class IPAddressResourceRecord : BaseResourceRecord
+    public class IpAddressResourceRecord : BaseResourceRecord
     {
         private static IResourceRecord Create(Domain domain, IPAddress ip, TimeSpan ttl)
         {
@@ -13,22 +13,22 @@ namespace Charon.Dns.Lib.Protocol.ResourceRecords
             return new ResourceRecord(domain, data, type, RecordClass.IN, ttl);
         }
 
-        public IPAddressResourceRecord(IResourceRecord record) : base(record)
+        public IpAddressResourceRecord(IResourceRecord record) : base(record)
         {
-            IPAddress = new IPAddress(Data);
+            IpAddress = new IPAddress(Data);
         }
 
-        public IPAddressResourceRecord(Domain domain, IPAddress ip, TimeSpan ttl = default(TimeSpan)) :
+        public IpAddressResourceRecord(Domain domain, IPAddress ip, TimeSpan ttl = default(TimeSpan)) :
             base(Create(domain, ip, ttl))
         {
-            IPAddress = ip;
+            IpAddress = ip;
         }
 
-        public IPAddress IPAddress { get; }
+        public IPAddress IpAddress { get; }
 
         public override string ToString()
         {
-            return Stringify().Add("IPAddress").ToString();
+            return Stringify().Add(nameof(IpAddress)).ToString();
         }
     }
 }

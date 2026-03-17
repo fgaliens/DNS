@@ -149,7 +149,7 @@ namespace Charon.Dns.Lib.Tests.Server
             public Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
             {
                 IResponse response = Response.FromRequest(request);
-                IResourceRecord record = new IPAddressResourceRecord(
+                IResourceRecord record = new IpAddressResourceRecord(
                     new Domain("google.com"),
                     IPAddress.Parse("192.168.0.1"));
 

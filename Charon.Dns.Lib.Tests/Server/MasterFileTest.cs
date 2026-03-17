@@ -42,7 +42,7 @@ namespace Charon.Dns.Lib.Tests.Server
             IResourceRecord clientResponseAnswer = clientResponse.AnswerRecords[0];
             Assert.Equal(RecordType.A, clientResponseAnswer.Type);
             Assert.Equal("google.com", clientResponseAnswer.Name.ToString());
-            Assert.Equal("192.168.0.1", ((IPAddressResourceRecord)clientResponseAnswer).IPAddress.ToString());
+            Assert.Equal("192.168.0.1", ((IpAddressResourceRecord)clientResponseAnswer).IpAddress.ToString());
         }
     }
 }
