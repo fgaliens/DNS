@@ -65,7 +65,7 @@ namespace Charon.Dns.Lib.Server
             _entries.Add(new MasterFileEntry
             {
                 ResourceRecord = entry,
-                ExpectedRemoteAddress = expectedRemoteAddress,
+                ExpectedRemoteAddress = expectedRemoteAddress?.MapToIPv6(),
             });
         }
 
@@ -180,7 +180,7 @@ namespace Charon.Dns.Lib.Server
                     && (resourceRecord.Type == type || type == RecordType.ANY))
                 {
                     foundEntries ??= new List<(MasterFileEntry Entry, bool MatchesByIp)>();
-                    var ipEquals = entry.ExpectedRemoteAddress?.Equals(remoteAddress) ?? false;
+                    var ipEquals = entry.ExpectedRemoteAddress?.Equals(remoteAddress.MapToIPv6()) ?? false;
                     foundEntries.Add((entry, ipEquals));
 
                     foundMatchByIp |= ipEquals;
