@@ -9,7 +9,7 @@ namespace Charon.Dns.EndToEndTests;
 
 public class EndToEndTests : IDisposable
 {
-    private static readonly TimeSpan InitializationTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan InitializationDelay = TimeSpan.FromSeconds(5);
     
     private readonly ITestOutputHelper _output;
     private readonly CancellationTokenSource _cancellationTokenSource;
@@ -25,7 +25,7 @@ public class EndToEndTests : IDisposable
     public async Task CheckCachedResponse()
     {
         // Arrange
-        await Task.Delay(InitializationTimeout);
+        await Task.Delay(InitializationDelay);
         
         var client = new DnsClient("127.0.0.1");
         
@@ -55,7 +55,7 @@ public class EndToEndTests : IDisposable
     public async Task CheckBlockedResponseReturnsNothing()
     {
         // Arrange
-        await Task.Delay(InitializationTimeout);
+        await Task.Delay(InitializationDelay);
         
         var client = new DnsClient("127.0.0.1");
         
@@ -70,7 +70,7 @@ public class EndToEndTests : IDisposable
     public async Task CheckUnderLoad()
     {
         // Arrange
-        await Task.Delay(InitializationTimeout);
+        await Task.Delay(InitializationDelay);
 
         DnsClient[] clients =
         [
@@ -161,7 +161,7 @@ public class EndToEndTests : IDisposable
     public async Task CheckUnderLoadWithSameRequests()
     {
         // Arrange
-        await Task.Delay(InitializationTimeout);
+        await Task.Delay(InitializationDelay);
 
         DnsClient[] clients =
         [
