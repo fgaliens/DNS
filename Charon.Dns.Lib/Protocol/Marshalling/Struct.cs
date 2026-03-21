@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Linq;
@@ -40,6 +41,39 @@ namespace Charon.Dns.Lib.Protocol.Marshalling
 
             return data;
         }
+        
+        [Experimental("Mem1")]
+        private static void ConvertEndian<T>(Span<byte> data)
+        {
+            Type type = typeof(T);
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            EndianAttribute endian = null;
+
+            if (type.GetTypeInfo().IsDefined(typeof(EndianAttribute), false))
+            {
+                endian = (EndianAttribute)type.GetTypeInfo().GetCustomAttributes(typeof(EndianAttribute), false).First();
+            }
+
+            foreach (FieldInfo field in fields)
+            {
+                if (endian == null && !field.IsDefined(typeof(EndianAttribute), false))
+                {
+                    continue;
+                }
+
+                int offset = Marshal.OffsetOf<T>(field.Name).ToInt32();
+#pragma warning disable 618
+                int length = Marshal.SizeOf(field.FieldType);
+#pragma warning restore 618
+                endian = endian ?? (EndianAttribute)field.GetCustomAttributes(typeof(EndianAttribute), false).First();
+
+                if (endian.Endianness == Endianness.Big && BitConverter.IsLittleEndian ||
+                    endian.Endianness == Endianness.Little && !BitConverter.IsLittleEndian)
+                {
+                    data.Reverse();
+                }
+            }
+        }
 
         public static T GetStruct<T>(byte[] data) where T : struct
         {
@@ -61,6 +95,17 @@ namespace Charon.Dns.Lib.Protocol.Marshalling
             {
                 handle.Free();
             }
+        }
+        
+        [Experimental("Mem1")]
+        public static T GetStruct<T>(ReadOnlyMemory<byte> data) where T : struct
+        {
+            Span<byte> buffer = stackalloc byte[data.Length];
+            data.Span.CopyTo(buffer);
+            
+            ConvertEndian<T>(buffer);
+            
+            return MemoryMarshal.Read<T>(buffer);
         }
 
         public static byte[] GetBytes<T>(T obj) where T : struct

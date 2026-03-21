@@ -1,15 +1,14 @@
 ﻿using System;
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
 using System.IO;
 using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Client;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
-using Charon.Dns.Lib.Protocol.Utils;
 
 namespace Charon.Dns.Lib.Server
 {
@@ -17,16 +16,13 @@ namespace Charon.Dns.Lib.Server
         : IAsyncObservable<OnRequestEventArgs>, 
             IAsyncObservable<OnResponseEventArgs>, 
             IAsyncObservable<OnExceptionEventArgs>, 
-            IAsyncObservable<OnListeningEventArgs>, 
-            IDisposable
+            IAsyncObservable<OnListeningEventArgs>
     {
-        private const int SioUdpConnreset = unchecked((int)0x9800000C);
-        private const int DefaultPort = 53;
-        private const int UdpTimeout = 2000;
+        private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
 
-        private bool _run = true;
-        private bool _disposed;
-        private UdpClient _udp;
+        private const int DefaultPort = 53;
+        private const int MaxUdpRequestSize = 512;
+
         private readonly IRequestResolver _resolver;
         private readonly AsyncObservable<OnRequestEventArgs> _requestEventObservable = new();
         private readonly AsyncObservable<OnResponseEventArgs> _responseEventObservable = new();
@@ -69,85 +65,14 @@ namespace Charon.Dns.Lib.Server
 
         public async Task Listen(IPEndPoint endpoint, CancellationToken cancellationToken = default)
         {
-            await Task.Yield();
+            using var udpSocket = new Socket(SocketType.Dgram, ProtocolType.Udp);
+            udpSocket.Bind(endpoint);
 
-            TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
-
-            if (_run)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                try
-                {
-                    cancellationToken.Register(Dispose);
-                        
-                    _udp = new UdpClient(endpoint);
-
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        _udp.Client.IOControl(SioUdpConnreset, new byte[4], new byte[4]);
-                    }
-                }
-                catch (SocketException e)
-                {
-                    await OnError(e);
-                    return;
-                }
-            }
-
-            void ReceiveCallback(IAsyncResult result)
-            {
-                byte[] data;
-
-                try
-                {
-                    IPEndPoint remote = new IPEndPoint(0, 0);
-                    data = _udp.EndReceive(result, ref remote);
-                    HandleRequest(data, remote);
-                }
-                catch (ObjectDisposedException)
-                {
-                    // run should already be false
-                    _run = false;
-                }
-                catch (SocketException e)
-                {
-                    _ = OnError(e);
-                }
-
-                if (_run) _udp.BeginReceive(ReceiveCallback, null);
-                else tcs.SetResult(null);
-            }
-
-            _udp.BeginReceive(ReceiveCallback, null);
-
-            await _listeningEventObservable.SendEvent(new OnListeningEventArgs
-            {
-                Sender = this,
-            });
-            
-            await tcs.Task.ConfigureAwait(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        protected virtual void OnEvent<T>(EventHandler<T> handler, T args)
-        {
-            if (handler != null) handler(this, args);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-
-                if (disposing)
-                {
-                    _run = false;
-                    _udp?.Dispose();
-                }
+                var buffer = ArrayPool.Rent(MaxUdpRequestSize);
+                var requestInfo = await udpSocket.ReceiveFromAsync(buffer, endpoint, cancellationToken);
+                await HandleRequest(udpSocket, buffer, requestInfo, cancellationToken);
             }
         }
 
@@ -159,13 +84,22 @@ namespace Charon.Dns.Lib.Server
             });
         }
 
-        private async void HandleRequest(byte[] data, IPEndPoint remote)
+        private async Task HandleRequest(
+            Socket socket, 
+            byte[] buffer, 
+            SocketReceiveFromResult dataInfo,
+            CancellationToken cancellationToken)
         {
+            await Task.Yield();
+            
+            var message = buffer[..dataInfo.ReceivedBytes];
+            var remote = (IPEndPoint)dataInfo.RemoteEndPoint;
+            
             Request request = null;
 
             try
             {
-                request = Request.FromArray(data);
+                request = Request.FromArray(message);
 
                 await _requestEventObservable.SendEvent(new OnRequestEventArgs
                 {
@@ -173,7 +107,7 @@ namespace Charon.Dns.Lib.Server
                     Remote = remote,
                 });
 
-                IResponse response = await _resolver.Resolve(request, remote).ConfigureAwait(false);
+                IResponse response = await _resolver.Resolve(request, remote, cancellationToken);
 
                 await _responseEventObservable.SendEvent(new OnResponseEventArgs
                 {
@@ -181,10 +115,8 @@ namespace Charon.Dns.Lib.Server
                     Response = response,
                     Remote = remote,
                 });
-                
-                await _udp
-                    .SendAsync(response.ToArray(), response.Size, remote)
-                    .WithCancellationTimeout(TimeSpan.FromMilliseconds(UdpTimeout)).ConfigureAwait(false);
+
+                await socket.SendToAsync(response.ToArray(), SocketFlags.None, remote, cancellationToken);
             }
             catch (SocketException e) { await OnError(e); }
             catch (ArgumentException e) { await OnError(e); }
@@ -203,9 +135,7 @@ namespace Charon.Dns.Lib.Server
 
                 try
                 {
-                    await _udp
-                        .SendAsync(response.ToArray(), response.Size, remote)
-                        .WithCancellationTimeout(TimeSpan.FromMilliseconds(UdpTimeout)).ConfigureAwait(false);
+                    await socket.SendToAsync(response.ToArray(), SocketFlags.None, remote, cancellationToken);
                 }
                 catch (SocketException) { }
                 catch (OperationCanceledException) { }
@@ -216,6 +146,10 @@ namespace Charon.Dns.Lib.Server
                         Exception = e,
                     });
                 }
+            }
+            finally
+            {
+                ArrayPool.Return(buffer);
             }
         }
 
@@ -228,15 +162,20 @@ namespace Charon.Dns.Lib.Server
                 _resolvers = resolvers;
             }
 
-            public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+            public async Task<IResponse> Resolve(
+                IRequest request, 
+                IPEndPoint remoteEndPoint, 
+                CancellationToken cancellationToken = default)
             {
                 IResponse response = null;
 
-                foreach (IRequestResolver resolver in _resolvers)
+                foreach (var resolver in _resolvers)
                 {
-                    response = await resolver.Resolve(request, remoteEndPoint, cancellationToken).ConfigureAwait(false);
-                    if (response.AnswerRecords.Count > 0) 
+                    response = await resolver.Resolve(request, remoteEndPoint, cancellationToken);
+                    if (response.AnswerRecords.Count > 0)
+                    {
                         break;
+                    }
                 }
 
                 return response;

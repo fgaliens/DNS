@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Charon.Dns.Interceptors;
 using Charon.Dns.Lib.AsyncEvents;
@@ -37,7 +36,7 @@ public class SmartDnsServer(
             masterFile,
             smartRequestResolver);
         
-        using var server = new DnsServer(requestResolvers);
+        var server = new DnsServer(requestResolvers);
         server.Subscribe(AsyncObserver.Create<OnExceptionEventArgs>(eventArgs =>
         {
             logger.Error(eventArgs.Exception, "Error occured");
@@ -56,7 +55,7 @@ public class SmartDnsServer(
             }
 #endif
             
-            var task = Task.Run([SuppressMessage("ReSharper", "AccessToDisposedClosure")] async () =>
+            var task = Task.Run(async () =>
             {
                 logger.Information("Listening on {Ip}:{Port}.",
                     listeningSettingsItem.Address, listeningSettingsItem.Port);
@@ -74,7 +73,7 @@ public class SmartDnsServer(
                 
                 logger.Warning("Stop listening on {Ip}:{Port}.",
                     listeningSettingsItem.Address, listeningSettingsItem.Port);
-            });
+            }, cancellationToken);
             listeningTasks.Add(task);
         }
 
