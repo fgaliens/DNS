@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
 
 [assembly: InternalsVisibleTo("Charon.Dns.Tests")]
 [assembly: InternalsVisibleTo("Charon.Dns.EndToEndTests")]
@@ -22,7 +23,7 @@ namespace Charon.Dns;
 
 static class Program
 {
-    private const string AppVersion = "1.5.0";
+    private const string AppVersion = "1.5.1";
 
     public async static Task Main(string[] args)
     {
@@ -36,11 +37,27 @@ static class Program
             .AddJsonFile("settings.json")
             .AddCommandLine(args)
             .Build();
+        
+        ConsoleTheme consoleTheme =
+#if DEBUG
+            AnsiConsoleTheme.Code; 
+#else
+            ConsoleTheme.None;
+#endif
 
         var logger = new LoggerConfiguration()
-            .MinimumLevel.Is(GetLogLevel())
+            .MinimumLevel.Is(LogEventLevel.Debug)
             .Destructure.With(new LoggingDestructuringPolicies())
-            .WriteTo.Console()
+            .WriteTo.Console(
+                restrictedToMinimumLevel: GetConsoleLogLevel(),
+                theme: consoleTheme)
+            .WriteTo.File(
+                "logs/dns.log", 
+                GetFileLogLevel(),
+                buffered: true,
+                flushToDiskInterval: TimeSpan.FromSeconds(5),
+                rollingInterval: RollingInterval.Minute,
+                retainedFileCountLimit: 60)
             .CreateLogger();
 
         logger.Information("Starting up DNS server. Version {AppVersion}", AppVersion);
@@ -77,18 +94,28 @@ static class Program
         await serviceInitializer.Initialize();
 
         await smartDnsServer.Start();
-        LogEventLevel GetLogLevel()
+        LogEventLevel GetConsoleLogLevel()
         {
 #if DEBUG
             return LogEventLevel.Debug;
 #else
-    if (Enum.TryParse<LogEventLevel>(config["LogLevel"], out var logLevel))
-    {
-        return logLevel;
-    }
+            if (Enum.TryParse<LogEventLevel>(config["LogLevel"], out var logLevel))
+            {
+                return logLevel;
+            }
 
-    return LogEventLevel.Information;
+            return LogEventLevel.Information;
 #endif
+        }
+        
+        LogEventLevel GetFileLogLevel()
+        {
+            if (Enum.TryParse<LogEventLevel>(config["FileLogLevel"], out var logLevel))
+            {
+                return logLevel;
+            }
+
+            return LogEventLevel.Debug;
         }
     }
 }

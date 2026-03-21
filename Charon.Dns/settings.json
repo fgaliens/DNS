@@ -1,5 +1,6 @@
 {
   "LogLevel": "Information",
+  "FileLogLevel": "Debug",
   "Server": {
     "ListenOn": [
       {
