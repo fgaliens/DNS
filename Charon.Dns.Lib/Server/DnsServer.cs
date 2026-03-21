@@ -72,7 +72,7 @@ namespace Charon.Dns.Lib.Server
             {
                 var buffer = ArrayPool.Rent(MaxUdpRequestSize);
                 var requestInfo = await udpSocket.ReceiveFromAsync(buffer, endpoint, cancellationToken);
-                await HandleRequest(udpSocket, buffer, requestInfo, cancellationToken);
+                _ = HandleRequest(udpSocket, buffer, requestInfo, cancellationToken);
             }
         }
 
