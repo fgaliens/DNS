@@ -4,6 +4,6 @@ namespace Charon.Dns.Routing;
 
 public interface IRouteManager<T> where T : IIpNetwork<T>
 {
-    Task AddRoute(T ip, string interfaceName);
+    Task AddRoutesBatch(IReadOnlyCollection<RouteBatchItem<T>> routeBatchItems);
     Task RemoveRoute(RouteToUntrack<T> routeToUntrack);
 }
