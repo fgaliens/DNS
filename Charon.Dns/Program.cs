@@ -23,7 +23,7 @@ namespace Charon.Dns;
 
 static class Program
 {
-    private const string AppVersion = "1.5.2";
+    private const string AppVersion = "1.5.4";
 
     public async static Task Main(string[] args)
     {
@@ -74,8 +74,7 @@ static class Program
             .AddSingleton<IResponseInterceptor, ResponseInterceptor>()
             .AddRouteManagement()
             .AddJobs(cfg => cfg
-                .AddJob<RemoveOutdatedRoutesJob>()
-                .AddJob<RemoveOutdatedCacheEntriesJob>())
+                .AddJob<RemoveOutdatedRoutesJob>())
             .AddSingleton<IConfiguration>(config)
             .AddSettings<ListeningSettings>()
             .AddSettings<DnsRecordsSettings>()

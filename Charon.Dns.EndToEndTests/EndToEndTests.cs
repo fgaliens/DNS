@@ -99,18 +99,18 @@
    
            string[] hosts =
            [
-               "ya.ru",
-               "yandex.cloud",
-               "apple.com",
-               "google.com",
-               "googlevideo.com",
-            "selectel.ru",
-            "youtube.com",
-            "instagram.com",
-               "instagram.com",
-               "amdm.ru",
-               "medium.com",
-               "max.ru",
+                "ya.ru",
+                "yandex.cloud",
+                "apple.com",
+                "google.com",
+                "googlevideo.com",
+                "selectel.ru",
+                "youtube.com",
+                "instagram.com",
+                "instagram.com",
+                "amdm.ru",
+                "medium.com",
+                "max.ru",
            ];
    
            RecordType[] recordTypes =

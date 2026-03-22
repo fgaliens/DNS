@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using Charon.Dns.Cache;
 using Charon.Dns.Lib.Protocol;
 using Serilog;
 using Serilog.Events;
@@ -11,18 +10,11 @@ namespace Charon.Dns.RequestResolving
         IDefaultRequestResolver defaultRequestResolver,
         ISafeRequestResolver safeRequestResolver,
         IHostNameAnalyzer hostNameAnalyzer,
-        IDnsCache dnsCache,
         ILogger logger) : ISmartRequestResolver
     {
         public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default)
         {
-            if (dnsCache.TryGetResponse(request, out var cachedResponse))
-            {
-                return cachedResponse;
-            }
-            
             var response = await ResolveInternal(request, remoteEndPoint, cancellationToken);
-            dnsCache.AddResponse(request, response);
             return response;
         }
         
