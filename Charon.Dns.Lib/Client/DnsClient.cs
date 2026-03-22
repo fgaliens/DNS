@@ -12,36 +12,36 @@ namespace Charon.Dns.Lib.Client
 {
     public class DnsClient
     {
-        private const int DEFAULT_PORT = 53;
+        private const int DefaultPort = 53;
 
-        private IRequestResolver resolver;
+        private readonly IRequestResolver _resolver;
 
         public DnsClient(IPEndPoint dns) :
             this(new UdpRequestResolver(dns, new TcpRequestResolver(dns)))
         { }
 
-        public DnsClient(IPAddress ip, int port = DEFAULT_PORT) :
+        public DnsClient(IPAddress ip, int port = DefaultPort) :
             this(new IPEndPoint(ip, port))
         { }
 
-        public DnsClient(string ip, int port = DEFAULT_PORT) :
+        public DnsClient(string ip, int port = DefaultPort) :
             this(IPAddress.Parse(ip), port)
         { }
 
         public DnsClient(IRequestResolver resolver)
         {
-            this.resolver = resolver;
+            this._resolver = resolver;
         }
 
         public ClientRequest FromArray(byte[] message)
         {
             Request request = Request.FromArray(message);
-            return new ClientRequest(resolver, request);
+            return new ClientRequest(_resolver, request);
         }
 
         public ClientRequest Create(IRequest request = null)
         {
-            return new ClientRequest(resolver, request);
+            return new ClientRequest(_resolver, request);
         }
 
         public async Task<IList<IPAddress>> Lookup(string domain, RecordType type = RecordType.A, CancellationToken cancellationToken = default(CancellationToken))

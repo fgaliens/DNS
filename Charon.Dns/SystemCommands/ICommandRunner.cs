@@ -6,4 +6,9 @@ public interface ICommandRunner
         T command,
         CancellationToken token = default)
         where T : ICommand;
+    
+    Task<bool> ExecuteBatch<T>(
+        IEnumerable<T> commands,
+        CancellationToken token = default)
+        where T : ICommand;
 }
