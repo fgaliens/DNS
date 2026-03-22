@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -8,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
-using Charon.Dns.Lib.Protocol.EqualityComparers;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
 
 namespace Charon.Dns.Lib.Client

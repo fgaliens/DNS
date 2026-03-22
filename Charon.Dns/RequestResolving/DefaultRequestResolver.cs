@@ -20,7 +20,7 @@ namespace Charon.Dns.RequestResolving
             _logger = logger;
             _innerResolvers = dnsChainSettings
                 .DefaultServers
-                .Select(x => new UdpRequestResolver(new IPEndPoint(x, DefaultDnsPort)))
+                .Select(x => new UdpRequestResolver(new IPEndPoint(x, DefaultDnsPort), logger: logger))
                 .ToArray();
         }
 

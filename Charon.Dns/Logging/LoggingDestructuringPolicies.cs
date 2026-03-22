@@ -72,6 +72,11 @@ public class LoggingDestructuringPolicies : IDestructuringPolicy
             
             properties.Add(new LogEventProperty("AdditionalRecordsCount", new ScalarValue(response.AdditionalRecords.Count)));
             properties.Add(new LogEventProperty("AuthorityRecordsCount", new ScalarValue(response.AuthorityRecords.Count)));
+
+            if (response.Truncated)
+            { 
+                properties.Add(new LogEventProperty("TRUNCATED", new ScalarValue("TRUE")));
+            }
             
             result = new StructureValue(properties);
             return true;
