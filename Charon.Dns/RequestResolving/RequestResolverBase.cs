@@ -19,7 +19,9 @@ public class RequestResolverBase : IRequestResolver
     {
         _logger = logger;
         _innerResolvers = chainDnsServers
-            .Select(x => new UdpRequestResolver(new IPEndPoint(x, DefaultDnsPort), logger: logger))
+            .Select(x => new UdpRequestResolver(
+                new IPEndPoint(x, DefaultDnsPort), 
+                logger: logger))
             .ToArray();
     }
 
