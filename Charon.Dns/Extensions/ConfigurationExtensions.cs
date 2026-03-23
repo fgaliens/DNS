@@ -37,6 +37,17 @@ public static class ConfigurationExtensions
         return section.GetSection(key).Value;
     }
     
+    public static T GetSectionValue<T>(this IConfigurationSection section) where T : IParsable<T>
+    {
+        var rawValue = section.Value;
+        if (!T.TryParse(rawValue, null, out var value))
+        {
+            throw new SettingsValidationException($"Unable to parse value for '{section.Path}'");
+        }
+        
+        return value;
+    }
+    
     public static T GetSectionValue<T>(this IConfigurationSection section, string key) where T : IParsable<T>
     {
         var rawValue = section.GetSection(key).Value;

@@ -15,7 +15,7 @@ public record DnsChainSettings : ISettings<DnsChainSettings>
         var defaultServers = dnsChainConfig
             .GetSection("DefaultServers")
             .GetChildren()
-            .Select(x => IPAddress.Parse(x.Value!))
+            .Select(x => x.GetSectionValue<IPAddress>())
             .ToArray();
         var securedServers = dnsChainConfig
             .GetSection("SecuredServers")
