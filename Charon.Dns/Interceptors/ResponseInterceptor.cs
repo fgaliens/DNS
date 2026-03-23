@@ -31,6 +31,7 @@ namespace Charon.Dns.Interceptors
             var previousHostNameWasSecured = false;
             Domain? previousHostName = null;
             SecuredConnectionParams? connectionParams = null;
+            List<Task>? addRouteTasks = null;
             
             foreach (var answer in response.AnswerRecords)
             {
@@ -49,17 +50,25 @@ namespace Charon.Dns.Interceptors
                 
                 if (shouldBeSecured)
                 {
+                    addRouteTasks ??= new(response.AnswerRecords.Count);
                     if (answer.Type is RecordType.A)
                     {
                         var ipV4Network = new IpV4Network(answer.Data, connectionParams!.IpV4RoutingSubnet);
-                        await ipV4NetworkManager.AddRoute(ipV4Network, connectionParams.InterfaceName);
+                        var addRouteTask = ipV4NetworkManager.AddRoute(ipV4Network, connectionParams.InterfaceName);
+                        addRouteTasks.Add(addRouteTask);
                     }
                     else if (answer.Type is RecordType.AAAA)
                     {
                         var ipV6Network = new IpV6Network(answer.Data, connectionParams!.IpV6RoutingSubnet);
-                        await ipV6NetworkManager.AddRoute(ipV6Network, connectionParams.InterfaceName);
+                        var addRouteTask = ipV6NetworkManager.AddRoute(ipV6Network, connectionParams.InterfaceName);
+                        addRouteTasks.Add(addRouteTask);
                     }
                 }
+            }
+
+            if (addRouteTasks is not null)
+            {
+                await Task.WhenAll(addRouteTasks);
             }
         }
 
