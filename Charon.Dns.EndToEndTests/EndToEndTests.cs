@@ -103,20 +103,20 @@
                 "yandex.cloud",
                 "apple.com",
                 "google.com",
-                "googlevideo.com",
-                "selectel.ru",
-                "youtube.com",
-                "instagram.com",
-                "amdm.ru",
-                "medium.com",
-                "max.ru",
+                //"googlevideo.com",
+                // "selectel.ru",
+                // "youtube.com",
+                // "instagram.com",
+                // "amdm.ru",
+                // "medium.com",
+                // "max.ru",
            ];
    
            RecordType[] recordTypes =
            [
                RecordType.A,
                RecordType.AAAA,
-               //RecordType.MX,
+               RecordType.MX,
            ];
    
            var requestsCombination = hosts
@@ -127,7 +127,7 @@
            
            Random.Shared.Shuffle(requestsCombination);
    
-           var responses = new List<Task<IResponse>>();
+           var responses = new List<Task<IResponse?>>();
            
            var measure = Stopwatch.StartNew();
            
@@ -136,7 +136,21 @@
            {
                foreach (var dnsClient in clients)
                {
-                   responses.Add(dnsClient.Resolve(host, recordType));
+                   responses.Add(Task.Run(async () =>
+                   {
+                       var innerHost = host;
+                       var innerRecordType = recordType;
+                       try
+                       {
+                           return await dnsClient.Resolve(innerHost, innerRecordType);
+                       }
+                       catch (Exception e)
+                       {
+                           _output.WriteLine($"[ERR]. Host: {innerHost}. Type: {innerRecordType}.\n{e}");
+                           throw;
+                           //return null;
+                       }
+                   }));
                }
            }
            
@@ -150,6 +164,11 @@
            foreach (var responseTask in responses)
            {
                var response = await responseTask;
+               if (response is null)
+               {
+                   continue;
+               }
+               
                var isBlocked = response.Questions.Any(x => x.Name.ToString().Equals("max.ru", StringComparison.OrdinalIgnoreCase));
                var isMxQuestion = response.Questions.Any(x => x.Type is  RecordType.MX);
                if (isBlocked)

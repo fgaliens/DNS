@@ -61,10 +61,7 @@ namespace Charon.Dns.RequestResolving
             catch (Exception e)
             {
                 logger.Error(e, "Dns request resolving failed ({@Request})", request);
-                
-                var errorResponse = Response.FromRequest(request);
-                errorResponse.ResponseCode = ResponseCode.ServerFailure;
-                return errorResponse;
+                throw;
             }
             finally
             {
