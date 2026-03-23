@@ -31,9 +31,6 @@ namespace Charon.Dns.Interceptors
             var previousHostNameWasSecured = false;
             Domain? previousHostName = null;
             SecuredConnectionParams? connectionParams = null;
-
-            List<RouteBatchItem<IpV4Network>>? ipV4NetworksToSecure = null;
-            List<RouteBatchItem<IpV6Network>>? ipV6NetworksToSecure = null;
             
             foreach (var answer in response.AnswerRecords)
             {
@@ -55,36 +52,14 @@ namespace Charon.Dns.Interceptors
                     if (answer.Type is RecordType.A)
                     {
                         var ipV4Network = new IpV4Network(answer.Data, connectionParams!.IpV4RoutingSubnet);
-                        
-                        ipV4NetworksToSecure ??= new(response.AnswerRecords.Count);
-                        ipV4NetworksToSecure.Add(new()
-                        {
-                            Ip = ipV4Network,
-                            Interface = connectionParams.InterfaceName,
-                        });
+                        await ipV4NetworkManager.AddRoute(ipV4Network, connectionParams.InterfaceName);
                     }
                     else if (answer.Type is RecordType.AAAA)
                     {
                         var ipV6Network = new IpV6Network(answer.Data, connectionParams!.IpV6RoutingSubnet);
-                        
-                        ipV6NetworksToSecure ??= new(response.AnswerRecords.Count);
-                        ipV6NetworksToSecure.Add(new()
-                        {
-                            Ip = ipV6Network,
-                            Interface = connectionParams.InterfaceName,
-                        });
+                        await ipV6NetworkManager.AddRoute(ipV6Network, connectionParams.InterfaceName);
                     }
                 }
-            }
-
-            if (ipV4NetworksToSecure is { Count: > 0 })
-            {
-                await ipV4NetworkManager.AddRoutesBatch(ipV4NetworksToSecure);
-            }
-            
-            if (ipV6NetworksToSecure is { Count: > 0 })
-            {
-                await ipV6NetworkManager.AddRoutesBatch(ipV6NetworksToSecure);
             }
         }
 

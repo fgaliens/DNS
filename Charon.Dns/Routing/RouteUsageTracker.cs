@@ -49,47 +49,6 @@ public class RouteUsageTracker<T> : IRouteUsageTracker<T> where T : IIpNetwork<T
         });
     }
 
-    public async Task<RouteToTrack<T>> TryTrackRouteWithLock(T ip)
-    {
-        if (_ipNetworks.TryGetValue(ip, out var item))
-        {
-            await item.EnterLock();
-            
-            var itemIsTracked = item.State == RouteState.Active;
-            if (item.State == RouteState.Removing)
-            {
-                _logger.Warning("Invalid state of route while trying to add: {Ip} - {Item}", ip, item);
-            }
-            
-            item.State = RouteState.Active;
-            item.LastUsageTime = _dateTimeProvider.UtcNow;
-            
-            return new RouteToTrackInternal(item)
-            {
-                TrackedAlready = itemIsTracked,
-                Route = ip,
-            };
-        }
-
-        var routeItem = new RouteItem
-        {
-            State = RouteState.Active,
-            LastUsageTime = _dateTimeProvider.UtcNow,
-        };
-        
-        if (!ImmutableInterlocked.TryAdd(ref _ipNetworks, ip, routeItem))
-        {
-            return await TryTrackRouteWithLock(ip);
-        }
-        
-        await routeItem.EnterLock();
-        return new RouteToTrackInternal(routeItem)
-        {
-            TrackedAlready = false,
-            Route = ip,
-        };
-    }
-
     public async Task<RouteToUntrack<T>> FindNextRouteToUntrack()
     {
         var outdatedPeriod = _dateTimeProvider.UtcNow - _routingSettings.RoutingPeriod;
@@ -171,14 +130,6 @@ public class RouteUsageTracker<T> : IRouteUsageTracker<T> where T : IIpNetwork<T
         Active,
         Removing,
         Removed,
-    }
-    
-    private class RouteToTrackInternal(RouteItem routeItem) : RouteToTrack<T>
-    {
-        public override void Dispose()
-        {
-            routeItem.Dispose();
-        }
     }
     
     private class RouteToUntrackInternal(RouteItem? routeItem) : RouteToUntrack<T>

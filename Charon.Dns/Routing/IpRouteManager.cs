@@ -1,7 +1,6 @@
 using Charon.Dns.Net;
 using Charon.Dns.SystemCommands;
 using Charon.Dns.SystemCommands.Implementations;
-using Charon.Dns.Utils;
 using Serilog;
 
 namespace Charon.Dns.Routing;
@@ -13,54 +12,25 @@ public class IpRouteManager<T>(
     : IRouteManager<T> 
     where T : IIpNetwork<T>
 {
-    public async Task AddRoutesBatch(IReadOnlyCollection<RouteBatchItem<T>> routeBatchItems)
+    public async Task AddRoute(T ip, string interfaceName)
     {
-        if (routeBatchItems is { Count: 0 })
+        logger.Debug("Trying to add route to {Ip} through {Interface}", ip, interfaceName);
+        
+        var ipNetwork = ip.MinAddress;
+        
+        if (!await routeUsageTracker.TryTrackRoute(ipNetwork))
         {
+            logger.Debug("Route to {Ip} through {Interface} has been added already", ip, interfaceName);
             return;
         }
         
-        if (routeBatchItems is { Count: 1 })
-        {
-            // Optimization for adding only one item
-            var singleRouteItem = routeBatchItems.First();
-            await AddSingleRoute(singleRouteItem.Ip.MinAddress, singleRouteItem.Interface);
-            return;
-        }
+        logger.Information("Adding route to {Ip} through {Interface}", ip, interfaceName);
         
-        var itemsGroup = routeBatchItems.GroupBy(x => x.Interface);
-
-        foreach (var groupItem in itemsGroup)
+        await commandRunner.Execute(new AddIpRouteCommand<T>
         {
-            var interfaceName = groupItem.Key;
-            var ips = groupItem
-                .Select(x => x.Ip.MinAddress)
-                .ToHashSet();
-            
-            using var routes = new DisposableObjectsCollection<RouteToTrack<T>>(ips.Count);
-            var untrackedRoutes = new List<T>(ips.Count);
-            foreach (var ip in ips)
-            {
-                var routeToTrack = await routeUsageTracker.TryTrackRouteWithLock(ip);
-                routes.Collection.Add(routeToTrack);
-
-                if (!routeToTrack.TrackedAlready)
-                {
-                    untrackedRoutes.Add(ip);
-                }
-            }
-
-            if (untrackedRoutes.Count == 0)
-            {
-                return;
-            }
-
-            await commandRunner.ExecuteBatch(untrackedRoutes.Select(x => new AddIpRouteCommand<T>
-            {
-                Ip = x,
-                Interface = interfaceName,
-            }));
-        }
+            Ip = ipNetwork,
+            Interface = interfaceName,
+        });
     }
 
     public async Task RemoveRoute(RouteToUntrack<T> routeToUntrack)
@@ -74,24 +44,5 @@ public class IpRouteManager<T>(
                 Ip = routeToUntrack.Route!,
             });
         }
-    }
-    
-    private async Task AddSingleRoute(T ipNetwork, string interfaceName)
-    {
-        logger.Debug("Trying to add single route to {Ip} through {Interface}", ipNetwork, interfaceName);
-        
-        if (!await routeUsageTracker.TryTrackRoute(ipNetwork))
-        {
-            logger.Debug("Route to {Ip} through {Interface} has been added already", ipNetwork, interfaceName);
-            return;
-        }
-        
-        logger.Information("Adding single route to {Ip} through {Interface}", ipNetwork, interfaceName);
-        
-        await commandRunner.Execute(new AddIpRouteCommand<T>
-        {
-            Ip = ipNetwork,
-            Interface = interfaceName,
-        });
     }
 }
