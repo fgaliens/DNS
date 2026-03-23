@@ -23,10 +23,11 @@ namespace Charon.Dns.Lib.Client.RequestResolver
         private readonly ILogger? _logger;
         private readonly ConcurrentBag<Socket> _availableSockets = new();
         private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Shared;
+        private ulong _returnedSocketsCounter;
 
         public UdpRequestResolver(
             IPEndPoint dnsEndpoint, 
-            IRequestResolver? fallback = null, 
+            IRequestResolver? fallback = null,
             ILogger? logger = null)
         {
             _dnsEndpoint = dnsEndpoint;
@@ -108,8 +109,41 @@ namespace Charon.Dns.Lib.Client.RequestResolver
             finally
             {
                 _availableSockets.Add(socket);
+                FreeSocketsIfNeeded();
+                
                 _logger?.Debug($"{nameof(UdpRequestResolver)}: Socket for DNS {{Ip}} returned to pool. Pool size: {{Size}}", 
                     _dnsEndpoint, _availableSockets.Count);
+            }
+        }
+
+        private void FreeSocketsIfNeeded()
+        {
+            var counter = Interlocked.Increment(ref _returnedSocketsCounter);
+            if (counter % 1000 != 0)
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref _returnedSocketsCounter, 1);
+            
+            if (_availableSockets.Count <= 5)
+            {
+                return;
+            }
+            
+            const double socketsFreeFactor = 0.8;
+            
+            var targetSocketsCount = (int)(_availableSockets.Count * socketsFreeFactor);
+            
+            _logger?.Debug("Trying to free sockets for DNS '{Dns}'. Current count: {SocketsCount}, target count: {TargetSocketsCount}",
+                _dnsEndpoint, _availableSockets.Count, targetSocketsCount);
+            
+            while (_availableSockets.Count > targetSocketsCount)
+            {
+                if (_availableSockets.TryTake(out var socket))
+                {
+                    socket.Dispose();
+                }
             }
         }
     }
