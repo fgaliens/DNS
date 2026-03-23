@@ -4,9 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO;
 using Charon.Dns.Lib.AsyncEvents;
-using Charon.Dns.Lib.Client;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 
@@ -118,38 +116,24 @@ namespace Charon.Dns.Lib.Server
 
                 await socket.SendToAsync(response.ToArray(), SocketFlags.None, remote, cancellationToken);
             }
-            catch (SocketException e) { await OnError(e); }
-            catch (ArgumentException e) { await OnError(e); }
-            catch (IndexOutOfRangeException e) { await OnError(e); }
-            catch (OperationCanceledException e) { await OnError(e); }
-            catch (IOException e) { await OnError(e); }
-            catch (ObjectDisposedException e) { await OnError(e); }
-            catch (ResponseException e)
+            catch (Exception e)
             {
-                IResponse response = e.Response;
-
-                if (response == null)
-                {
-                    response = Response.FromRequest(request);
-                }
+                await OnError(e);
 
                 try
                 {
+                    var response = Response.FromRequest(request);
+                    response.ResponseCode = ResponseCode.ServerFailure;
                     await socket.SendToAsync(response.ToArray(), SocketFlags.None, remote, cancellationToken);
                 }
-                catch (SocketException) { }
-                catch (OperationCanceledException) { }
-                finally
+                catch (Exception sendErrorException)
                 {
-                    await _exceptionEventObservable.SendEvent(new OnExceptionEventArgs
-                    {
-                        Exception = e,
-                    });
+                    await OnError(sendErrorException);
                 }
             }
             finally
             {
-                ArrayPool.Return(buffer);
+                ArrayPool.Return(buffer, clearArray: true);
             }
         }
 

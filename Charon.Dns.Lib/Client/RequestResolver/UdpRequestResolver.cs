@@ -78,7 +78,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
                     {
                         throw new IOException($"Remote endpoint mismatch. Expected response from {_dnsEndpoint}, received from {responseInfo.RemoteEndPoint}");
                     }
-                    
+
                     response = Response.FromArray(buffer[..responseInfo.ReceivedBytes]);
                 }
 
@@ -94,6 +94,10 @@ namespace Charon.Dns.Lib.Client.RequestResolver
                         _dnsEndpoint, request);
                 }
                 return response;
+            }
+            catch (OperationCanceledException operationCanceledException)
+            {
+                throw new OperationCanceledException($"Request to {request.Questions[0].Name} (DNS: {_dnsEndpoint} was canceled)", operationCanceledException);
             }
             catch (Exception e)
             {

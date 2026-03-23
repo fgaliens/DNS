@@ -9,9 +9,10 @@ namespace Charon.Dns.RequestResolving
 {
     public class DefaultRequestResolver : IDefaultRequestResolver
     {
-        private readonly ILogger _logger;
-        private readonly UdpRequestResolver[] _innerResolvers;
         private const int DefaultDnsPort = 53; 
+        
+        private readonly UdpRequestResolver[] _innerResolvers;
+        private readonly ILogger _logger;
         
         public DefaultRequestResolver(
             DnsChainSettings dnsChainSettings,
@@ -32,9 +33,8 @@ namespace Charon.Dns.RequestResolving
             
             try
             {
-                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, remoteEndPoint, cancellationToken));
-                var response = await Task.WhenAny(responseTasks);
-                return await response;
+                var randomResolver = _innerResolvers[Random.Shared.Next(_innerResolvers.Length)];
+                return await randomResolver.Resolve(request, remoteEndPoint, cancellationToken);
             }
             finally
             {

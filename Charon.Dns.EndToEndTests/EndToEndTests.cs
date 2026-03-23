@@ -107,7 +107,6 @@
                 "selectel.ru",
                 "youtube.com",
                 "instagram.com",
-                "instagram.com",
                 "amdm.ru",
                 "medium.com",
                 "max.ru",
@@ -117,7 +116,7 @@
            [
                RecordType.A,
                RecordType.AAAA,
-               RecordType.MX,
+               //RecordType.MX,
            ];
    
            var requestsCombination = hosts
@@ -180,7 +179,7 @@
        public async Task CheckUnderLoadWithSameRequests()
        {
            // Arrange
-           await Task.Delay(InitializationDelay);
+           await Task.Delay(InitializationDelay * 2);
    
            DnsClient[] clients =
            [

@@ -31,9 +31,8 @@ namespace Charon.Dns.RequestResolving
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, remoteEndPoint, cancellationToken));
-                var response = await Task.WhenAny(responseTasks);
-                return await response;
+                var randomResolver = _innerResolvers[Random.Shared.Next(_innerResolvers.Length)];
+                return await randomResolver.Resolve(request, remoteEndPoint, cancellationToken);
             }
             finally
             {
