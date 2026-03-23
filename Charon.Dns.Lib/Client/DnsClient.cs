@@ -30,7 +30,7 @@ namespace Charon.Dns.Lib.Client
 
         public DnsClient(IRequestResolver resolver)
         {
-            this._resolver = resolver;
+            _resolver = resolver;
         }
 
         public ClientRequest FromArray(byte[] message)
