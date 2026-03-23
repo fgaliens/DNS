@@ -31,13 +31,14 @@ namespace Charon.Dns.RequestResolving
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                var randomResolver = _innerResolvers[Random.Shared.Next(_innerResolvers.Length)];
-                return await randomResolver.Resolve(request, remoteEndPoint, cancellationToken);
+                var responseTasks = _innerResolvers.Select(x => x.Resolve(request, remoteEndPoint, cancellationToken));
+                var response = await Task.WhenAny(responseTasks);
+                return await response;
             }
             finally
             {
                 _logger.Debug(
-                    "{Source}: request resolved by chain in {ElapsedMilliseconds}", 
+                    "{Source}: request resolved by chain in {ElapsedMilliseconds} ms.", 
                     nameof(SafeRequestResolver), 
                     stopwatch.ElapsedMilliseconds);
             }
