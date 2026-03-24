@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
@@ -7,59 +8,28 @@ using System.Threading.Tasks;
 using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
+using Charon.Dns.Lib.Tracing;
+using Serilog;
 
 namespace Charon.Dns.Lib.Server
 {
-    public class DnsServer 
-        : IAsyncObservable<OnRequestEventArgs>, 
-            IAsyncObservable<OnResponseEventArgs>, 
-            IAsyncObservable<OnExceptionEventArgs>, 
+    public class DnsServer(
+        IRequestResolver resolver,
+        IRequestCounter requestCounter,
+        ILogger logger)
+            : IAsyncObservable<OnRequestEventArgs>,
+            IAsyncObservable<OnResponseEventArgs>,
+            IAsyncObservable<OnExceptionEventArgs>,
             IAsyncObservable<OnListeningEventArgs>
     {
         private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
 
-        private const int DefaultPort = 53;
         private const int MaxUdpRequestSize = 512;
 
-        private readonly IRequestResolver _resolver;
         private readonly AsyncObservable<OnRequestEventArgs> _requestEventObservable = new();
         private readonly AsyncObservable<OnResponseEventArgs> _responseEventObservable = new();
         private readonly AsyncObservable<OnExceptionEventArgs> _exceptionEventObservable = new();
         private readonly AsyncObservable<OnListeningEventArgs> _listeningEventObservable = new();
-
-        public DnsServer(IRequestResolver resolver, IPEndPoint endServer) :
-            this(new FallbackRequestResolver(resolver, new UdpRequestResolver(endServer)))
-        { }
-
-        public DnsServer(IRequestResolver resolver, IPAddress endServer, int port = DefaultPort) :
-            this(resolver, new IPEndPoint(endServer, port))
-        { }
-
-        public DnsServer(IRequestResolver resolver, string endServer, int port = DefaultPort) :
-            this(resolver, IPAddress.Parse(endServer), port)
-        { }
-
-        public DnsServer(IPEndPoint endServer) :
-            this(new UdpRequestResolver(endServer))
-        { }
-
-        public DnsServer(IPAddress endServer, int port = DefaultPort) :
-            this(new IPEndPoint(endServer, port))
-        { }
-
-        public DnsServer(string endServer, int port = DefaultPort) :
-            this(IPAddress.Parse(endServer), port)
-        { }
-
-        public DnsServer(IRequestResolver resolver)
-        {
-            _resolver = resolver;
-        }
-
-        public Task Listen(int port = DefaultPort, IPAddress ip = null, CancellationToken cancellationToken = default)
-        {
-            return Listen(new IPEndPoint(ip ?? IPAddress.Any, port), cancellationToken);
-        }
 
         public async Task Listen(IPEndPoint endpoint, CancellationToken cancellationToken = default)
         {
@@ -74,11 +44,12 @@ namespace Charon.Dns.Lib.Server
             }
         }
 
-        private async Task OnError(Exception e)
+        private async Task OnError(Exception e, RequestTrace? trace)
         {
             await _exceptionEventObservable.SendEvent(new OnExceptionEventArgs
             {
                 Exception = e,
+                Trace = trace,
             });
         }
 
@@ -89,11 +60,21 @@ namespace Charon.Dns.Lib.Server
             CancellationToken cancellationToken)
         {
             await Task.Yield();
+
+            var requestId = requestCounter.Increment();
+
+            var requestLogger = logger.ForContext("RequestId", requestId);
             
             var message = buffer[..dataInfo.ReceivedBytes];
             var remote = (IPEndPoint)dataInfo.RemoteEndPoint;
-            
-            Request request = null;
+            var trace = new RequestTrace
+            {
+                Id = requestId,
+                RemoteEndPoint = remote,
+                Logger = requestLogger,
+            };
+
+            Request? request = null;
 
             try
             {
@@ -102,23 +83,23 @@ namespace Charon.Dns.Lib.Server
                 await _requestEventObservable.SendEvent(new OnRequestEventArgs
                 {
                     Request = request,
-                    Remote = remote,
+                    Trace = trace,
                 });
 
-                IResponse response = await _resolver.Resolve(request, remote, cancellationToken);
+                IResponse response = await resolver.Resolve(request, trace, cancellationToken);
 
                 await _responseEventObservable.SendEvent(new OnResponseEventArgs
                 {
                     Request = request,
                     Response = response,
-                    Remote = remote,
+                    Trace = trace,
                 });
 
                 await socket.SendToAsync(response.ToArray(), SocketFlags.None, remote, cancellationToken);
             }
             catch (Exception e)
             {
-                await OnError(e);
+                await OnError(e, trace);
 
                 try
                 {
@@ -128,7 +109,7 @@ namespace Charon.Dns.Lib.Server
                 }
                 catch (Exception sendErrorException)
                 {
-                    await OnError(sendErrorException);
+                    await OnError(sendErrorException, trace);
                 }
             }
             finally
@@ -148,21 +129,21 @@ namespace Charon.Dns.Lib.Server
 
             public async Task<IResponse> Resolve(
                 IRequest request, 
-                IPEndPoint remoteEndPoint, 
+                RequestTrace trace, 
                 CancellationToken cancellationToken = default)
             {
-                IResponse response = null;
+                IResponse? response = null;
 
                 foreach (var resolver in _resolvers)
                 {
-                    response = await resolver.Resolve(request, remoteEndPoint, cancellationToken);
+                    response = await resolver.Resolve(request, trace, cancellationToken);
                     if (response.AnswerRecords.Count > 0)
                     {
                         break;
                     }
                 }
 
-                return response;
+                return response!;
             }
         }
 

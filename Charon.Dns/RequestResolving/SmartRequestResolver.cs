@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using System.Net;
 using Charon.Dns.Cache;
 using Charon.Dns.Lib.Protocol;
-using Serilog;
+using Charon.Dns.Lib.Tracing;
 using Serilog.Events;
 
 namespace Charon.Dns.RequestResolving
@@ -11,23 +10,29 @@ namespace Charon.Dns.RequestResolving
         IDefaultRequestResolver defaultRequestResolver,
         ISafeRequestResolver safeRequestResolver,
         IHostNameAnalyzer hostNameAnalyzer,
-        IDnsCache dnsCache,
-        ILogger logger) : ISmartRequestResolver
+        IDnsCache dnsCache) : ISmartRequestResolver
     {
-        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default)
+        public async Task<IResponse> Resolve(
+            IRequest request, 
+            RequestTrace trace,
+            CancellationToken cancellationToken = default)
         {
-            if (dnsCache.TryGetResponse(request, out var cachedResponse))
+            if (dnsCache.TryGetResponse(request, trace, out var cachedResponse))
             {
                 return cachedResponse;
             }
             
-            var response = await ResolveInternal(request, remoteEndPoint, cancellationToken);
-            dnsCache.AddResponse(request, response);
+            var response = await ResolveInternal(request, trace, cancellationToken);
+            dnsCache.AddResponse(request, response, trace);
             return response;
         }
         
-        private async Task<IResponse> ResolveInternal(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken)
+        private async Task<IResponse> ResolveInternal(
+            IRequest request, 
+            RequestTrace trace, 
+            CancellationToken cancellationToken)
         {
+            var logger = trace.Logger;
             var stopwatch = Stopwatch.StartNew();
             
             try
@@ -38,13 +43,13 @@ namespace Charon.Dns.RequestResolving
                 {
                     var hostName = question.Name.ToString();
                     
-                    if (hostNameAnalyzer.ShouldBeBlocked(hostName))
+                    if (hostNameAnalyzer.ShouldBeBlocked(hostName, trace))
                     {
                         shouldBeBlocked = true;
                         break;
                     }
                     
-                    if (hostNameAnalyzer.ShouldBeSecured(hostName))
+                    if (hostNameAnalyzer.ShouldBeSecured(hostName, trace))
                     {
                         shouldBeSecured = true;
                         break;
@@ -60,11 +65,11 @@ namespace Charon.Dns.RequestResolving
                 if (shouldBeSecured)
                 {
                     logger.Information("Dns request resolving is secured ({@Request})", request);
-                    return await safeRequestResolver.Resolve(request, remoteEndPoint, cancellationToken);
+                    return await safeRequestResolver.Resolve(request, trace, cancellationToken);
                 }
 
                 logger.Debug("Dns request resolving is non secured ({@Request})", request);
-                return await defaultRequestResolver.Resolve(request, remoteEndPoint, cancellationToken);
+                return await defaultRequestResolver.Resolve(request, trace, cancellationToken);
             }
             catch (Exception e)
             {

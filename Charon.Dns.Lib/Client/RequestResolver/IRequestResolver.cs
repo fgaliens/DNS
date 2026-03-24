@@ -1,7 +1,8 @@
-using System.Net;
+#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
 using Charon.Dns.Lib.Protocol;
+using Charon.Dns.Lib.Tracing;
 
 namespace Charon.Dns.Lib.Client.RequestResolver
 {
@@ -9,7 +10,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
     {
         Task<IResponse> Resolve(
             IRequest request,
-            IPEndPoint remoteEndPoint,
-            CancellationToken cancellationToken = default(CancellationToken));
+            RequestTrace trace,
+            CancellationToken cancellationToken = default);
     }
 }

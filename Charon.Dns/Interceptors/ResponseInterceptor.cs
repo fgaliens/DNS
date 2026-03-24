@@ -1,27 +1,25 @@
-using System.Net;
 using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Protocol;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Net;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Routing;
-using Serilog;
 
 namespace Charon.Dns.Interceptors
 {
     public class ResponseInterceptor(
         IHostNameAnalyzer hostNameAnalyzer,
         IRouteManager<IpV4Network> ipV4NetworkManager,
-        IRouteManager<IpV6Network> ipV6NetworkManager,
-        ILogger logger) 
+        IRouteManager<IpV6Network> ipV6NetworkManager) 
         : IResponseInterceptor
     {
         public async Task Handle(
             IRequest request, 
             IResponse response,
-            IPEndPoint remoteEndPoint,
+            RequestTrace trace,
             CancellationToken token = default)
         {
-            logger.Debug("Intercepting request from {RemoteIp}", remoteEndPoint);
+            var logger = trace.Logger;
 
             if (response.Truncated)
             {
@@ -43,7 +41,10 @@ namespace Charon.Dns.Interceptors
                 }
                 else
                 {
-                    shouldBeSecured = hostNameAnalyzer.ShouldBeSecured(answer.Name.ToString(), out connectionParams);
+                    shouldBeSecured = hostNameAnalyzer.ShouldBeSecured(
+                        answer.Name.ToString(),
+                        trace,
+                        out connectionParams);
                     previousHostName = answer.Name;
                     previousHostNameWasSecured = shouldBeSecured;
                 }
@@ -54,13 +55,19 @@ namespace Charon.Dns.Interceptors
                     if (answer.Type is RecordType.A)
                     {
                         var ipV4Network = new IpV4Network(answer.Data, connectionParams!.IpV4RoutingSubnet);
-                        var addRouteTask = ipV4NetworkManager.AddRoute(ipV4Network, connectionParams.InterfaceName);
+                        var addRouteTask = ipV4NetworkManager.AddRoute(
+                            ipV4Network,
+                            connectionParams.InterfaceName,
+                            trace);
                         addRouteTasks.Add(addRouteTask);
                     }
                     else if (answer.Type is RecordType.AAAA)
                     {
                         var ipV6Network = new IpV6Network(answer.Data, connectionParams!.IpV6RoutingSubnet);
-                        var addRouteTask = ipV6NetworkManager.AddRoute(ipV6Network, connectionParams.InterfaceName);
+                        var addRouteTask = ipV6NetworkManager.AddRoute(
+                            ipV6Network,
+                            connectionParams.InterfaceName,
+                            trace);
                         addRouteTasks.Add(addRouteTask);
                     }
                 }
@@ -74,7 +81,7 @@ namespace Charon.Dns.Interceptors
 
         async Task IAsyncObserver<OnResponseEventArgs>.OnEvent(OnResponseEventArgs eventArgs)
         {
-            await Handle(eventArgs.Request, eventArgs.Response, eventArgs.Remote);
+            await Handle(eventArgs.Request, eventArgs.Response, eventArgs.Trace);
         }
 
         Task IAsyncObserver<OnResponseEventArgs>.OnCompleted()

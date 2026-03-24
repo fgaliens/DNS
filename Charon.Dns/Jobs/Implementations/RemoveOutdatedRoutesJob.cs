@@ -1,6 +1,9 @@
+using System.Net;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Net;
 using Charon.Dns.Routing;
 using Charon.Dns.Settings;
+using Serilog;
 
 namespace Charon.Dns.Jobs.Implementations;
 
@@ -9,10 +12,10 @@ public class RemoveOutdatedRoutesJob(
     IRouteManager<IpV6Network> ipV6NetworkManager,
     IRouteUsageTracker<IpV4Network> ipV4NetworkUsageTracker,
     IRouteUsageTracker<IpV6Network> ipV6NetworkUsageTracker,
-    RoutingSettings routingSettings) 
+    RoutingSettings routingSettings,
+    ILogger logger) 
     : IJob
 {
-
     public TimeSpan Period { get; } = routingSettings.RoutingPeriod / 2;
     
     public async Task Execute()
@@ -23,7 +26,7 @@ public class RemoveOutdatedRoutesJob(
             using var routeToUntrack = await ipV4NetworkUsageTracker.FindNextRouteToUntrack();
             if (routeToUntrack.Found)
             {
-                await ipV4NetworkManager.RemoveRoute(routeToUntrack);
+                await ipV4NetworkManager.RemoveRoute(routeToUntrack, RequestTrace.Empty);
             }
             ipV4RouteFound = routeToUntrack.Found;
         }
@@ -34,7 +37,7 @@ public class RemoveOutdatedRoutesJob(
             using var routeToUntrack = await ipV6NetworkUsageTracker.FindNextRouteToUntrack();
             if (routeToUntrack.Found)
             {
-                await ipV6NetworkManager.RemoveRoute(routeToUntrack);
+                await ipV6NetworkManager.RemoveRoute(routeToUntrack, RequestTrace.Empty);
             }
             ipV6RouteFound = routeToUntrack.Found;
         }

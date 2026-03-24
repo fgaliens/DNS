@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
-using Serilog;
+using Charon.Dns.Lib.Tracing;
 
 namespace Charon.Dns.RequestResolving;
 
@@ -11,40 +11,34 @@ public class RequestResolverBase : IRequestResolver
     private const int DefaultDnsPort = 53; 
         
     private readonly UdpRequestResolver[] _innerResolvers;
-    private readonly ILogger _logger;
         
-    public RequestResolverBase(
-        IEnumerable<IPAddress> chainDnsServers,
-        ILogger logger)
+    public RequestResolverBase(IEnumerable<IPAddress> chainDnsServers)
     {
-        _logger = logger;
         _innerResolvers = chainDnsServers
-            .Select(x => new UdpRequestResolver(
-                new IPEndPoint(x, DefaultDnsPort), 
-                logger: logger))
+            .Select(x => new UdpRequestResolver(new IPEndPoint(x, DefaultDnsPort)))
             .ToArray();
     }
 
     public async Task<IResponse> Resolve(
         IRequest request, 
-        IPEndPoint remoteEndPoint, 
+        RequestTrace? trace, 
         CancellationToken cancellationToken = default)
     {
-        _logger.Debug("Resolving {@Request} safely", request);
+        trace?.Logger.Debug("Resolving {@Request} safely", request);
             
         var stopwatch = Stopwatch.StartNew();
         try
         {
             var responseTasks = _innerResolvers.Select(x => 
-                x.Resolve(request, remoteEndPoint, cancellationToken));
+                x.Resolve(request, trace, cancellationToken));
             var response = await Task.WhenAny(responseTasks);
             return await response;
         }
         finally
         {
-            _logger.Debug(
+            trace?.Logger.Debug(
                 "{Source}: request resolved by chain in {ElapsedMilliseconds} ms.", 
-                nameof(SafeRequestResolver), 
+                GetType().Name, 
                 stopwatch.ElapsedMilliseconds);
         }
     }

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Charon.Dns.Extensions;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Settings;
 using Charon.Dns.Utils;
 using Serilog;
@@ -12,13 +13,16 @@ namespace Charon.Dns.Cache;
 public class DnsCache(
     IDateTimeProvider dateTimeProvider,
     CacheSettings cacheSettings,
-    ILogger logger) 
+    ILogger globalLogger) 
     : IDnsCache
 {
     private ImmutableSortedSet<CacheEntry> _cacheEntries = ImmutableSortedSet.Create<CacheEntry>(CacheEntryEqualityComparer.Instance);
     private ImmutableDictionary<IRequest, CacheEntry> _cache = ImmutableDictionary.Create<IRequest, CacheEntry>();
     
-    public void AddResponse(IRequest request, IResponse response)
+    public void AddResponse(
+        IRequest request, 
+        IResponse response, 
+        RequestTrace trace)
     {
         if (IsDisabled())
         {
@@ -29,6 +33,8 @@ public class DnsCache(
         {
             return;
         }
+        
+        var logger = trace.Logger;
 
         var cacheTtl = response.AnswerRecords.Min(x => x.TimeToLive);
         cacheTtl = cacheTtl > TimeSpan.Zero ? cacheTtl : cacheSettings.TimeToLive;
@@ -44,12 +50,15 @@ public class DnsCache(
         if (ImmutableInterlocked.TryAdd(ref _cache, request, responseEntry))
         {
             ImmutableInterlockedUtils.Add(ref _cacheEntries, responseEntry);
+            
+            logger.Debug("Response added to cache for request {@Request}", request);
         }
-
-        logger.Debug("Response added to cache for request {@Request}", request);
     }
 
-    public bool TryGetResponse(IRequest request, [NotNullWhen(true)] out IResponse? response)
+    public bool TryGetResponse(
+        IRequest request, 
+        RequestTrace trace,
+        [NotNullWhen(true)] out IResponse? response)
     {
         response = null;
         
@@ -63,8 +72,8 @@ public class DnsCache(
             return false;
         }
         
+        var logger = trace.Logger;
         var cachedResponse = cachedResponseEntry.Response;
-
         var now = dateTimeProvider.UtcNow;
 
         if (cachedResponseEntry.ValidUntil < now)
@@ -116,7 +125,7 @@ public class DnsCache(
         while (cacheEntries.Count > 0 && cacheEntries.Min.ValidUntil < dateTimeProvider.UtcNow)
         {
             var cacheEntry = cacheEntries.Min;
-            logger.Debug("Removing outdated cache entry. Valid until: {Valid}; Request: {@Request}; Response: {@Response}", 
+            globalLogger.Debug("Removing outdated cache entry. Valid until: {Valid}; Request: {@Request}; Response: {@Response}", 
                 cacheEntry.ValidUntil, cacheEntry.Request, cacheEntry.Response);
             RemoveCacheEntry(cacheEntry);
             

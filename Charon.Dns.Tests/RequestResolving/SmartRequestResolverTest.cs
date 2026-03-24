@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
 using Charon.Dns.Cache;
 using Charon.Dns.Lib.Protocol;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Tests.Utils.Mock;
 using FluentAssertions;
@@ -33,6 +33,7 @@ public class SmartRequestResolverTest
     public SmartRequestResolverTest()
     {
         _fixture.Register(() => new Domain(_fixture.Create<string>()));
+        _fixture.Register(() => Mock.Of<ILogger>());
     }
     
     [Fact]
@@ -43,23 +44,27 @@ public class SmartRequestResolverTest
             .CreateMany<Question>(1)
             .ToList();
         var request = Mock.Of<IRequest>(x => x.Questions == requestQuestions);
-        var endPoint = _fixture.Create<IPEndPoint>();
+        var trace = _fixture.Create<RequestTrace>();
         var expectedResponse = Mock.Of<IResponse>();
         
         _serviceProvider.SetupMockOf<IHostNameAnalyzer>(mock =>
         {
             mock.Setup(x => x
-                .ShouldBeSecured(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                .ShouldBeSecured(
+                    It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                    It.IsAny<RequestTrace>()))
                 .Returns(false);
             mock.Setup(x => x
-                .ShouldBeBlocked(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                .ShouldBeBlocked(
+                    It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                    It.IsAny<RequestTrace>()))
                 .Returns(false);
         })
         .SetupMockOf<IDefaultRequestResolver>(mock =>
         {
             mock.Setup(x => x.Resolve(
                 It.Is<IRequest>(y => y == request), 
-                It.Is<IPEndPoint>(y => y == endPoint), 
+                It.Is<RequestTrace>(y => y == trace), 
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expectedResponse);
         });
@@ -67,15 +72,15 @@ public class SmartRequestResolverTest
         var requestResolver = _serviceProvider.GetRequiredService<SmartRequestResolver>();
         
         // Act
-        var actualResponse = await requestResolver.Resolve(request, endPoint, CancellationToken.None);
+        var actualResponse = await requestResolver.Resolve(request, trace, CancellationToken.None);
         
         // Assert
         actualResponse.Should().Be(expectedResponse);
         
         var dnsCacheMock = _serviceProvider.GetMockOf<IDnsCache>();
         IResponse cachedResponse;
-        dnsCacheMock.Verify(x => x.TryGetResponse(request, out cachedResponse), Times.Once);
-        dnsCacheMock.Verify(x => x.AddResponse(request, expectedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.TryGetResponse(request, It.IsAny<RequestTrace>(), out cachedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.AddResponse(request, expectedResponse, It.IsAny<RequestTrace>()), Times.Once);
     }
     
     [Fact]
@@ -86,23 +91,27 @@ public class SmartRequestResolverTest
             .CreateMany<Question>(1)
             .ToList();
         var request = Mock.Of<IRequest>(x => x.Questions == requestQuestions);
-        var endPoint = _fixture.Create<IPEndPoint>();
+        var trace = _fixture.Create<RequestTrace>();
         var expectedResponse = Mock.Of<IResponse>();
         
         _serviceProvider.SetupMockOf<IHostNameAnalyzer>(mock =>
             {
                 mock.Setup(x => x
-                        .ShouldBeSecured(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                        .ShouldBeSecured(
+                            It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                            It.IsAny<RequestTrace>()))
                     .Returns(true);
                 mock.Setup(x => x
-                        .ShouldBeBlocked(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                        .ShouldBeBlocked(
+                            It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                            It.IsAny<RequestTrace>()))
                     .Returns(false);
             })
             .SetupMockOf<ISafeRequestResolver>(mock =>
             {
                 mock.Setup(x => x.Resolve(
                         It.Is<IRequest>(y => y == request), 
-                        It.Is<IPEndPoint>(y => y == endPoint), 
+                        It.Is<RequestTrace>(y => y == trace), 
                         It.IsAny<CancellationToken>()))
                     .ReturnsAsync(expectedResponse);
             });
@@ -110,15 +119,15 @@ public class SmartRequestResolverTest
         var requestResolver = _serviceProvider.GetRequiredService<SmartRequestResolver>();
         
         // Act
-        var actualResponse = await requestResolver.Resolve(request, endPoint, CancellationToken.None);
+        var actualResponse = await requestResolver.Resolve(request, trace, CancellationToken.None);
         
         // Assert
         actualResponse.Should().Be(expectedResponse);
         
         var dnsCacheMock = _serviceProvider.GetMockOf<IDnsCache>();
         IResponse cachedResponse;
-        dnsCacheMock.Verify(x => x.TryGetResponse(request, out cachedResponse), Times.Once);
-        dnsCacheMock.Verify(x => x.AddResponse(request, expectedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.TryGetResponse(request, It.IsAny<RequestTrace>(), out cachedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.AddResponse(request, expectedResponse, It.IsAny<RequestTrace>()), Times.Once);
     }
     
     [Fact]
@@ -129,22 +138,26 @@ public class SmartRequestResolverTest
             .CreateMany<Question>(1)
             .ToList();
         var request = Mock.Of<IRequest>(x => x.Questions == requestQuestions);
-        var endPoint = _fixture.Create<IPEndPoint>();
+        var trace = _fixture.Create<RequestTrace>();
         
         _serviceProvider.SetupMockOf<IHostNameAnalyzer>(mock =>
         {
             mock.Setup(x => x
-                    .ShouldBeSecured(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                    .ShouldBeSecured(
+                        It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                        It.IsAny<RequestTrace>()))
                 .Returns(false);
             mock.Setup(x => x
-                    .ShouldBeBlocked(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                    .ShouldBeBlocked(
+                        It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                        It.IsAny<RequestTrace>()))
                 .Returns(true);
         });
         
         var requestResolver = _serviceProvider.GetRequiredService<SmartRequestResolver>();
         
         // Act
-        var actualResponse = await requestResolver.Resolve(request, endPoint, CancellationToken.None);
+        var actualResponse = await requestResolver.Resolve(request, trace, CancellationToken.None);
         
         // Assert
         actualResponse.Questions.Should().BeEquivalentTo(requestQuestions);
@@ -153,19 +166,19 @@ public class SmartRequestResolverTest
         var defaultRequestResolver = _serviceProvider.GetMockOf<IDefaultRequestResolver>();
         defaultRequestResolver.Verify(x => x.Resolve(
             It.IsAny<IRequest>(),
-            It.IsAny<IPEndPoint>(),
+            It.IsAny<RequestTrace>(),
             It.IsAny<CancellationToken>()), Times.Never);
         
         var safeRequestResolver = _serviceProvider.GetMockOf<ISafeRequestResolver>();
         safeRequestResolver.Verify(x => x.Resolve(
             It.IsAny<IRequest>(),
-            It.IsAny<IPEndPoint>(),
+            It.IsAny<RequestTrace>(),
             It.IsAny<CancellationToken>()), Times.Never);
         
         var dnsCacheMock = _serviceProvider.GetMockOf<IDnsCache>();
         IResponse cachedResponse;
-        dnsCacheMock.Verify(x => x.TryGetResponse(request, out cachedResponse), Times.Once);
-        dnsCacheMock.Verify(x => x.AddResponse(request, It.IsAny<IResponse>()), Times.Once);
+        dnsCacheMock.Verify(x => x.TryGetResponse(request, It.IsAny<RequestTrace>(), out cachedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.AddResponse(request, It.IsAny<IResponse>(), It.IsAny<RequestTrace>()), Times.Once);
     }
     
     [Fact]
@@ -176,22 +189,26 @@ public class SmartRequestResolverTest
             .CreateMany<Question>(1)
             .ToList();
         var request = Mock.Of<IRequest>(x => x.Questions == requestQuestions);
-        var endPoint = _fixture.Create<IPEndPoint>();
+        var trace = _fixture.Create<RequestTrace>();
         
         _serviceProvider.SetupMockOf<IHostNameAnalyzer>(mock =>
         {
             mock.Setup(x => x
-                    .ShouldBeSecured(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                    .ShouldBeSecured(
+                        It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                        It.IsAny<RequestTrace>()))
                 .Returns(true);
             mock.Setup(x => x
-                    .ShouldBeBlocked(It.Is<string>(y => y == requestQuestions[0].Name.ToString())))
+                    .ShouldBeBlocked(
+                        It.Is<string>(y => y == requestQuestions[0].Name.ToString()),
+                        It.IsAny<RequestTrace>()))
                 .Returns(true);
         });
         
         var requestResolver = _serviceProvider.GetRequiredService<SmartRequestResolver>();
         
         // Act
-        var actualResponse = await requestResolver.Resolve(request, endPoint, CancellationToken.None);
+        var actualResponse = await requestResolver.Resolve(request, trace, CancellationToken.None);
         
         // Assert
         actualResponse.Questions.Should().BeEquivalentTo(requestQuestions);
@@ -200,18 +217,18 @@ public class SmartRequestResolverTest
         var defaultRequestResolver = _serviceProvider.GetMockOf<IDefaultRequestResolver>();
         defaultRequestResolver.Verify(x => x.Resolve(
             It.IsAny<IRequest>(),
-            It.IsAny<IPEndPoint>(),
+            It.IsAny<RequestTrace>(),
             It.IsAny<CancellationToken>()), Times.Never);
         
         var safeRequestResolver = _serviceProvider.GetMockOf<ISafeRequestResolver>();
         safeRequestResolver.Verify(x => x.Resolve(
             It.IsAny<IRequest>(),
-            It.IsAny<IPEndPoint>(),
+            It.IsAny<RequestTrace>(),
             It.IsAny<CancellationToken>()), Times.Never);
         
         var dnsCacheMock = _serviceProvider.GetMockOf<IDnsCache>();
         IResponse cachedResponse;
-        dnsCacheMock.Verify(x => x.TryGetResponse(request, out cachedResponse), Times.Once);
-        dnsCacheMock.Verify(x => x.AddResponse(request, It.IsAny<IResponse>()), Times.Once);
+        dnsCacheMock.Verify(x => x.TryGetResponse(request, It.IsAny<RequestTrace>(), out cachedResponse), Times.Once);
+        dnsCacheMock.Verify(x => x.AddResponse(request, It.IsAny<IResponse>(), It.IsAny<RequestTrace>()), Times.Once);
     }
 }

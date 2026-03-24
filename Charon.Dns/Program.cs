@@ -45,15 +45,17 @@ static class Program
             ConsoleTheme.None;
 #endif
 
-        var logger = new LoggerConfiguration()
+        await using var logger = new LoggerConfiguration()
             .MinimumLevel.Is(LogEventLevel.Debug)
             .Destructure.With(new LoggingDestructuringPolicies())
             .WriteTo.Console(
+                outputTemplate: "[{Timestamp:HH:mm:ss}][{Level:u3}][#{RequestId}] {Message:lj}{NewLine}{Exception}",
                 restrictedToMinimumLevel: GetConsoleLogLevel(),
                 theme: consoleTheme)
             .WriteTo.File(
                 "logs/dns.log", 
                 GetFileLogLevel(),
+                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}][{Level:u3}][#{RequestId}] {Message:lj}{NewLine}{Exception}",
                 buffered: true,
                 flushToDiskInterval: TimeSpan.FromSeconds(5),
                 rollingInterval: RollingInterval.Minute,
@@ -94,6 +96,7 @@ static class Program
         await serviceInitializer.Initialize();
 
         await smartDnsServer.Start();
+        
         LogEventLevel GetConsoleLogLevel()
         {
 #if DEBUG

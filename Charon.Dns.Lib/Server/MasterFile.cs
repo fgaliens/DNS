@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
+using Charon.Dns.Lib.Tracing;
 
 namespace Charon.Dns.Lib.Server
 {
@@ -123,13 +124,16 @@ namespace Charon.Dns.Lib.Server
             AddServiceResourceRecord(new Domain(domain), priority, weight, port, new Domain(target));
         }
 
-        public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+        public Task<IResponse> Resolve(
+            IRequest request, 
+            RequestTrace trace, 
+            CancellationToken cancellationToken = default)
         {
             IResponse response = Response.FromRequest(request);
 
             foreach (Question question in request.Questions)
             {
-                var answers = Get(question, remoteEndPoint.Address).ToArray();
+                var answers = Get(question, trace.RemoteEndPoint.Address).ToArray();
 
                 if (answers.Length > 0)
                 {

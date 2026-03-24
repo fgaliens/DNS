@@ -1,17 +1,19 @@
 using System.Diagnostics;
 using System.Text;
+using Charon.Dns.Extensions;
+using Charon.Dns.Lib.Tracing;
 using Serilog;
 
 namespace Charon.Dns.SystemCommands;
 
-public class CommandRunner(
-    ILogger logger) : ICommandRunner
+public class CommandRunner(ILogger globalLogger) : ICommandRunner
 {
-    public async Task<bool> Execute<T>(
-        T command,
+    public async Task<bool> Execute<T>(T command,
+        RequestTrace trace,
         CancellationToken token = default)
         where T : ICommand
     {
+        var logger = trace.GetLogger(globalLogger);
         try
         {
             var builder = new StringBuilder();
@@ -65,10 +67,10 @@ public class CommandRunner(
             EscapeQuotes(builder);
             var commandText = builder.ToString();
 
-            logger.Information("Executing command '{Command}'", commandText);
+            globalLogger.Information("Executing command '{Command}'", commandText);
 
 #if DEBUG
-            logger.Warning("Execution of command '{Command}' skipped in debug mode", commandText);
+            globalLogger.Warning("Execution of command '{Command}' skipped in debug mode", commandText);
             await Task.Delay(10, token);
             return true;
 #endif
@@ -84,13 +86,13 @@ public class CommandRunner(
             process.Start();
             await process.WaitForExitAsync(token);
 
-            logger.Information("Command '{Command}' executed with exit code = {Code}", commandText, process.ExitCode);
+            globalLogger.Information("Command '{Command}' executed with exit code = {Code}", commandText, process.ExitCode);
 
             return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            logger.Warning(ex, "Error in {ClassName}", nameof(CommandRunner));
+            globalLogger.Warning(ex, "Error in {ClassName}", nameof(CommandRunner));
             return false;
         }
     }

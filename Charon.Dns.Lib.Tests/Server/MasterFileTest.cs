@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
 using Charon.Dns.Lib.Server;
+using Charon.Dns.Lib.Tracing;
 using Xunit;
 
 namespace Charon.Dns.Lib.Tests.Server
@@ -27,7 +28,14 @@ namespace Charon.Dns.Lib.Tests.Server
             clientRequest.Questions.Add(clientRequestQuestion);
             clientRequest.OperationCode = OperationCode.Query;
 
-            IResponse clientResponse = await masterFile.Resolve(clientRequest, new IPEndPoint(0x11223344, 10111));
+            IResponse clientResponse = await masterFile.Resolve(
+                clientRequest,
+                new RequestTrace
+                {
+                    Id = 0,
+                    RemoteEndPoint = new IPEndPoint(0x11223344, 10111),
+                    Logger = null, // TODO: fix
+                });
 
             Assert.Equal(1, clientResponse.Id);
             Assert.Equal(1, clientResponse.Questions.Count);

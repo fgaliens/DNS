@@ -1,9 +1,11 @@
+using Charon.Dns.Lib.Tracing;
+
 namespace Charon.Dns.SystemCommands;
 
 public interface ICommandRunner
 {
-    Task<bool> Execute<T>(
-        T command,
+    Task<bool> Execute<T>(T command,
+        RequestTrace trace,
         CancellationToken token = default)
         where T : ICommand;
     

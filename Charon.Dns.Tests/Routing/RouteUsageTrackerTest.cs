@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoFixture;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Net;
 using Charon.Dns.Routing;
 using Charon.Dns.Settings;
@@ -58,12 +60,19 @@ public class RouteUsageTrackerTest
         // Arrange
         var services = GetServiceProvider<T>();
         var routeUsageTracker = services.GetRequiredService<RouteUsageTracker<T>>();
-        
+        var logger = services.GetRequiredService<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = logger,
+        };
+
         var ip = _fixture.Create<T>();
         
         // Act
-        var result1 = await routeUsageTracker.TryTrackRoute(ip);
-        var result2 = await routeUsageTracker.TryTrackRoute(ip);
+        var result1 = await routeUsageTracker.TryTrackRoute(ip, trace);
+        var result2 = await routeUsageTracker.TryTrackRoute(ip, trace);
         
         // Assert
         result1.Should().BeTrue();
@@ -83,6 +92,13 @@ public class RouteUsageTrackerTest
         // Arrange
         var services = GetServiceProvider<T>();
         var routeUsageTracker = services.GetRequiredService<RouteUsageTracker<T>>();
+        var logger = services.GetRequiredService<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = logger,
+        };
         
         var ip = _fixture.Create<T>();
 
@@ -95,13 +111,13 @@ public class RouteUsageTrackerTest
         var task1 = Task.Run(async () =>
         {
             sync.SignalAndWait();
-            result1 = await routeUsageTracker.TryTrackRoute(ip);
+            result1 = await routeUsageTracker.TryTrackRoute(ip, trace);
         });
         
         var task2 = Task.Run(async () =>
         {
             sync.SignalAndWait();
-            result2 = await routeUsageTracker.TryTrackRoute(ip);
+            result2 = await routeUsageTracker.TryTrackRoute(ip, trace);
         });
         
         await Task.WhenAll(task1, task2);
@@ -124,14 +140,21 @@ public class RouteUsageTrackerTest
         // Arrange
         var services = GetServiceProvider<T>();
         var routeUsageTracker = services.GetRequiredService<RouteUsageTracker<T>>();
+        var logger = services.GetRequiredService<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = logger,
+        };
         
         var ip1 = _fixture.Create<T>();
         var ip2 = _fixture.Create<T>();
         var ip3 = _fixture.Create<T>();
 
-        var route1Tracked = await routeUsageTracker.TryTrackRoute(ip1);
-        var route2Tracked = await routeUsageTracker.TryTrackRoute(ip2);
-        var route3Tracked = await routeUsageTracker.TryTrackRoute(ip3);
+        var route1Tracked = await routeUsageTracker.TryTrackRoute(ip1, trace);
+        var route2Tracked = await routeUsageTracker.TryTrackRoute(ip2, trace);
+        var route3Tracked = await routeUsageTracker.TryTrackRoute(ip3, trace);
         
         // Act
         var routeToUntrack = await routeUsageTracker.FindNextRouteToUntrack();
@@ -163,6 +186,13 @@ public class RouteUsageTrackerTest
         var baseTime = DateTimeOffset.UtcNow;
         var outdated = baseTime - DefaultRoutingPeriod * 1.25;
         var valid = baseTime;
+        var logger = services.GetRequiredService<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = logger,
+        };
 
         services.SetupMockOf<IDateTimeProvider>(mock => mock
             .SetupSequence(x => x.UtcNow)
@@ -173,9 +203,9 @@ public class RouteUsageTrackerTest
             .Returns(valid)
             .Returns(valid));
 
-        var route1Tracked = await routeUsageTracker.TryTrackRoute(ip1);
-        var route2Tracked = await routeUsageTracker.TryTrackRoute(ip2);
-        var route3Tracked = await routeUsageTracker.TryTrackRoute(ip3);
+        var route1Tracked = await routeUsageTracker.TryTrackRoute(ip1, trace);
+        var route2Tracked = await routeUsageTracker.TryTrackRoute(ip2, trace);
+        var route3Tracked = await routeUsageTracker.TryTrackRoute(ip3, trace);
         
         // Act
         var routeToUntrack = await routeUsageTracker.FindNextRouteToUntrack();

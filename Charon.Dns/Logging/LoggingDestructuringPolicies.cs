@@ -13,8 +13,11 @@ public class LoggingDestructuringPolicies : IDestructuringPolicy
     {
         if (value is IRequest request)
         {
-            var properties = new List<LogEventProperty>();
-            properties.Add(new LogEventProperty("Id", new ScalarValue(request.Id)));
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("Type", new ScalarValue("REQUEST")),
+                new LogEventProperty("Id", new ScalarValue(request.Id)),
+            };
 
             if (request.Questions.Count == 0)
             {
@@ -39,8 +42,11 @@ public class LoggingDestructuringPolicies : IDestructuringPolicy
         
         if (value is IResponse response)
         {
-            var properties = new List<LogEventProperty>();
-            properties.Add(new LogEventProperty("Id", new ScalarValue(response.Id)));
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("Type", new ScalarValue("RESPONSE")),
+                new LogEventProperty("Id", new ScalarValue(response.Id)),
+            };
 
             if (response.Questions.Count == 0)
             {

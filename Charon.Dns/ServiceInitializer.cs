@@ -1,4 +1,5 @@
 using Charon.Dns.Jobs;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Net;
 using Charon.Dns.Settings;
 using Charon.Dns.SystemCommands;
@@ -22,13 +23,13 @@ namespace Charon.Dns
                     await commandRunner.Execute(new AddInterfaceForDnsCommand
                     {
                         InterfaceIndex = index,
-                    });
+                    }, RequestTrace.Empty);
                     
                     await commandRunner.Execute(new SetIpForDnsInterfaceCommand
                     {
                         InterfaceIndex = index,
                         InterfaceAddress = listeningSettingsItem.Address,
-                    });
+                    }, RequestTrace.Empty);
                     
                     index++;
                 }
@@ -40,7 +41,7 @@ namespace Charon.Dns
                 {
                     Ip = new IpV4Network(securedDnsServer.Ip.GetAddressBytes(), 32),
                     Interface = securedDnsServer.InterfaceToRouteThrough,
-                });
+                }, RequestTrace.Empty);
             }
             
             jobRunner.Start();

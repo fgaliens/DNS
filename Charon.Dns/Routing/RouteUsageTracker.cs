@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Net;
 using Charon.Dns.Settings;
 using Charon.Dns.Utils;
@@ -23,7 +24,7 @@ public class RouteUsageTracker<T> : IRouteUsageTracker<T> where T : IIpNetwork<T
         _logger = logger;
     }
     
-    public async ValueTask<bool> TryTrackRoute(T ip)
+    public async ValueTask<bool> TryTrackRoute(T ip, RequestTrace trace)
     {
         if (_ipNetworks.TryGetValue(ip, out var item))
         {
@@ -33,7 +34,7 @@ public class RouteUsageTracker<T> : IRouteUsageTracker<T> where T : IIpNetwork<T
             var itemIsTracked = item.State == RouteState.Active;
             if (item.State == RouteState.Removing)
             {
-                _logger.Warning("Invalid state of route while trying to add: {Ip} - {Item}", ip, item);
+                trace.Logger.Warning("Invalid state of route while trying to add: {Ip} - {Item}", ip, item);
             }
             
             item.State = RouteState.Active;

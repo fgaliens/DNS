@@ -1,4 +1,7 @@
 using System;
+using System.Net;
+using AutoFixture;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Settings;
 using FluentAssertions;
@@ -12,6 +15,8 @@ namespace Charon.Dns.Tests.RequestResolving;
 [TestSubject(typeof(HostNameAnalyzer))]
 public class HostNameAnalyzerTest
 {
+    private readonly Fixture _fixture = new();
+    
     [Theory]
     [InlineData("instagram.com")]
     [InlineData("Instagram.Com")]
@@ -39,11 +44,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
-        
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
+
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeSecured(hostName, out var connectionParams);
+        var result = analyzer.ShouldBeSecured(hostName, trace, out var connectionParams);
         
         // Assert
         result.Should().BeTrue();
@@ -76,11 +87,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
         
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeSecured(hostName, out var connectionParams);
+        var result = analyzer.ShouldBeSecured(hostName, trace, out var connectionParams);
         
         // Assert
         result.Should().BeFalse();
@@ -114,11 +131,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
         
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeSecured(hostName, out var connectionParams);
+        var result = analyzer.ShouldBeSecured(hostName, trace, out var connectionParams);
         
         // Assert
         result.Should().BeTrue();
@@ -151,11 +174,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
         
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeSecured(hostName, out var connectionParams);
+        var result = analyzer.ShouldBeSecured(hostName, trace, out var connectionParams);
         
         // Assert
         result.Should().BeFalse();
@@ -190,11 +219,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
         
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeBlocked(hostName);
+        var result = analyzer.ShouldBeBlocked(hostName, trace);
         
         // Assert
         result.Should().BeTrue();
@@ -229,11 +264,17 @@ public class HostNameAnalyzerTest
         };
 
         var loggerMock = Mock.Of<ILogger>();
+        var trace = new RequestTrace
+        {
+            Id = _fixture.Create<ulong>(),
+            RemoteEndPoint = _fixture.Create<IPEndPoint>(),
+            Logger = loggerMock,
+        };
         
         var analyzer = new HostNameAnalyzer(settings, loggerMock);
         
         // Act
-        var result = analyzer.ShouldBeBlocked(hostName);
+        var result = analyzer.ShouldBeBlocked(hostName, trace);
         
         // Assert
         result.Should().BeFalse();

@@ -1,27 +1,29 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 using Charon.Dns.Lib.Protocol;
+using Charon.Dns.Lib.Tracing;
 
 namespace Charon.Dns.Lib.Client.RequestResolver
 {
     public class TcpRequestResolver : IRequestResolver
     {
-        private IPEndPoint dns;
+        private readonly IPEndPoint _dns;
 
         public TcpRequestResolver(IPEndPoint dns)
         {
-            this.dns = dns;
+            _dns = dns;
         }
 
-        public async Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<IResponse> Resolve(IRequest request, RequestTrace trace, CancellationToken cancellationToken = default(CancellationToken))
         {
-            using (TcpClient tcp = new TcpClient(dns.AddressFamily))
+            using (TcpClient tcp = new TcpClient(_dns.AddressFamily))
             {
-                await tcp.ConnectAsync(dns.Address, dns.Port).ConfigureAwait(false);
+                await tcp.ConnectAsync(_dns.Address, _dns.Port).ConfigureAwait(false);
 
                 Stream stream = tcp.GetStream();
                 byte[] buffer = request.ToArray();

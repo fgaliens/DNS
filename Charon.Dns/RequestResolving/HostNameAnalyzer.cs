@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using Charon.Dns.Extensions;
+using Charon.Dns.Lib.Tracing;
 using Charon.Dns.Settings;
 using Serilog;
 
@@ -12,7 +13,6 @@ public class HostNameAnalyzer : IHostNameAnalyzer
     private readonly FrozenDictionary<string, SecuredConnectionParams> _domainMatchedHostnames;
     private readonly ConcurrentDictionary<string, SecuredConnectionParams?> _substringMatchedHostnames = new(StringComparer.OrdinalIgnoreCase);
     private readonly FrozenSet<string> _blockedHostnames;
-    private readonly ILogger _logger;
 
     public HostNameAnalyzer(
         RoutingSettings routingSettings,
@@ -65,34 +65,41 @@ public class HostNameAnalyzer : IHostNameAnalyzer
         
         logger.Information("Found {ItemsCount} host names to be secured (by domain substring; indexes: {IndexesCount})", 
             hostNameSubstringsCount, _substringMatchedHostnames.Count);
-        
-        _logger = logger;
     }
 
-    public bool ShouldBeSecured(string domainName)
+    public bool ShouldBeSecured(string domainName, RequestTrace trace)
     {
-        var result = ShouldBeSecuredInternal(domainName, out _);
-        _logger.Debug("Host name '{Host}' should be secured: {IsSecured}", domainName, result);
+        var logger = trace.Logger;
+        var result = ShouldBeSecuredInternal(domainName, trace, out _);
+        logger.Debug("Host name '{Host}' should be secured: {IsSecured}", domainName, result);
         return result;
     }
     
-    public bool ShouldBeSecured(string domainName, [NotNullWhen(true)] out SecuredConnectionParams? connectionParams)
+    public bool ShouldBeSecured(
+        string domainName, 
+        RequestTrace trace,
+        [NotNullWhen(true)] out SecuredConnectionParams? connectionParams)
     {
-        var result = ShouldBeSecuredInternal(domainName, out connectionParams);
-        _logger.Debug("Host name '{Host}' should be secured: {IsSecured}", domainName, result);
+        var logger = trace.Logger;
+        var result = ShouldBeSecuredInternal(domainName, trace, out connectionParams);
+        logger.Debug("Host name '{Host}' should be secured: {IsSecured}", domainName, result);
         return result;
     }
 
-    public bool ShouldBeBlocked(string domainName)
+    public bool ShouldBeBlocked(string domainName, RequestTrace trace)
     {
         return _blockedHostnames.Contains(domainName);
     }
 
-    private bool ShouldBeSecuredInternal(string domainName, [NotNullWhen(true)] out SecuredConnectionParams? connectionParams)
+    private bool ShouldBeSecuredInternal(
+        string domainName, 
+        RequestTrace trace,
+        [NotNullWhen(true)] out SecuredConnectionParams? connectionParams)
     {
+        var logger = trace.Logger;
         if (_domainMatchedHostnames.TryGetValue(domainName, out connectionParams))
         {
-            _logger.Debug("Host name '{Host}' should be secured because it is matched by domain", domainName);
+            logger.Debug("Host name '{Host}' should be secured because it is matched by domain", domainName);
             
             return true;
         }

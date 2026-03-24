@@ -9,7 +9,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Charon.Dns.Lib.Protocol;
-using Serilog;
+using Charon.Dns.Lib.Tracing;
 
 namespace Charon.Dns.Lib.Client.RequestResolver
 {
@@ -20,30 +20,27 @@ namespace Charon.Dns.Lib.Client.RequestResolver
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
         private readonly IPEndPoint _dnsEndpoint;
         private readonly IRequestResolver? _fallback;
-        private readonly ILogger? _logger;
         private readonly ConcurrentBag<Socket> _availableSockets = new();
         private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Shared;
         private ulong _returnedSocketsCounter;
 
         public UdpRequestResolver(
             IPEndPoint dnsEndpoint, 
-            IRequestResolver? fallback = null,
-            ILogger? logger = null)
+            IRequestResolver? fallback = null)
         {
             _dnsEndpoint = dnsEndpoint;
             _fallback = fallback;
-            _logger = logger;
         }
 
         public async Task<IResponse> Resolve(
             IRequest request, 
-            IPEndPoint remoteEndPoint, 
+            RequestTrace trace, 
             CancellationToken cancellationToken = default)
         {
             if (!_availableSockets.TryTake(out var socket))
             {
                 socket = new Socket(SocketType.Dgram, ProtocolType.Udp);
-                _logger?.Debug($"{nameof(UdpRequestResolver)}: New socket for DNS {{Ip}} created", _dnsEndpoint);
+                trace.Logger.Debug($"{nameof(UdpRequestResolver)}: New socket for DNS {{Ip}} created", _dnsEndpoint);
             }
 
             try
@@ -68,7 +65,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
                 {
                     if (response is not null)
                     {
-                        _logger?.Warning($"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got response with unexpected ID:\n" +
+                        trace.Logger.Warning($"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got response with unexpected ID:\n" +
                             "Request: {@Request}\nResponse: {@Response}",
                             _dnsEndpoint, request, response);
                     }
@@ -89,9 +86,9 @@ namespace Charon.Dns.Lib.Client.RequestResolver
                 {
                     if (_fallback != null)
                     {
-                        return await _fallback.Resolve(request, remoteEndPoint, cts.Token);
+                        return await _fallback.Resolve(request, trace, cts.Token);
                     }
-                    _logger?.Warning($"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got truncated response for request: {{@Request}}",
+                    trace.Logger.Warning($"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got truncated response for request: {{@Request}}",
                         _dnsEndpoint, request);
                 }
                 return response;
@@ -102,21 +99,21 @@ namespace Charon.Dns.Lib.Client.RequestResolver
             }
             catch (Exception e)
             {
-                _logger?.Error(e, $"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got error for request {{@Request}}",
+                trace.Logger.Error(e, $"{nameof(UdpRequestResolver)}: DNS resolver ({{Ip}}) got error for request {{@Request}}",
                     _dnsEndpoint, request);
                 throw;
             }
             finally
             {
                 _availableSockets.Add(socket);
-                FreeSocketsIfNeeded();
+                FreeSocketsIfNeeded(trace);
                 
-                _logger?.Debug($"{nameof(UdpRequestResolver)}: Socket for DNS {{Ip}} returned to pool. Pool size: {{Size}}", 
+                trace.Logger.Debug($"{nameof(UdpRequestResolver)}: Socket for DNS {{Ip}} returned to pool. Pool size: {{Size}}", 
                     _dnsEndpoint, _availableSockets.Count);
             }
         }
 
-        private void FreeSocketsIfNeeded()
+        private void FreeSocketsIfNeeded(RequestTrace trace)
         {
             var counter = Interlocked.Increment(ref _returnedSocketsCounter);
             if (counter % 1000 != 0)
@@ -135,7 +132,7 @@ namespace Charon.Dns.Lib.Client.RequestResolver
             
             var targetSocketsCount = (int)(_availableSockets.Count * socketsFreeFactor);
             
-            _logger?.Debug("Trying to free sockets for DNS '{Dns}'. Current count: {SocketsCount}, target count: {TargetSocketsCount}",
+            trace.Logger.Debug("Trying to free sockets for DNS '{Dns}'. Current count: {SocketsCount}, target count: {TargetSocketsCount}",
                 _dnsEndpoint, _availableSockets.Count, targetSocketsCount);
             
             while (_availableSockets.Count > targetSocketsCount)

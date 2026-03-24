@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
+using Charon.Dns.Lib.Tracing;
+using Serilog.Core;
 
 namespace Charon.Dns.Lib.Client
 {
@@ -103,7 +105,16 @@ namespace Charon.Dns.Lib.Client
         {
             try
             {
-                IResponse response = await _resolver.Resolve(this, LocalEndPoint, cancellationToken).ConfigureAwait(false);
+                IResponse response = await _resolver.Resolve(
+                        this, 
+                        new RequestTrace
+                        {
+                            Id = 0,
+                            RemoteEndPoint = new IPEndPoint(0,0),
+                            Logger = Logger.None,
+                        },
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (response.Id != this.Id)
                 {

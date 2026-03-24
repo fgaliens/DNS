@@ -6,6 +6,7 @@ using Charon.Dns.Lib.Client;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Protocol.ResourceRecords;
+using Charon.Dns.Lib.Tracing;
 using Xunit;
 
 namespace Charon.Dns.Lib.Tests.Client
@@ -44,7 +45,7 @@ namespace Charon.Dns.Lib.Tests.Client
 
         private class IPAddressRequestResolver : IRequestResolver
         {
-            public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+            public Task<IResponse> Resolve(IRequest request, RequestTrace trace, CancellationToken cancellationToken = default)
             {
                 IResponse response = Response.FromRequest(request);
                 IResourceRecord record = new IpAddressResourceRecord(
@@ -58,7 +59,7 @@ namespace Charon.Dns.Lib.Tests.Client
 
         private class PointerRequestResolver : IRequestResolver
         {
-            public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+            public Task<IResponse> Resolve(IRequest request, RequestTrace trace, CancellationToken cancellationToken = default)
             {
                 IResponse response = Response.FromRequest(request);
                 IResourceRecord record = new PointerResourceRecord(
@@ -72,7 +73,7 @@ namespace Charon.Dns.Lib.Tests.Client
 
         private class NameErrorRequestResolver : IRequestResolver
         {
-            public Task<IResponse> Resolve(IRequest request, IPEndPoint remoteEndPoint, CancellationToken cancellationToken = default(CancellationToken))
+            public Task<IResponse> Resolve(IRequest request, RequestTrace trace, CancellationToken cancellationToken = default)
             {
                 IResponse response = Response.FromRequest(request);
                 response.ResponseCode = ResponseCode.NameError;

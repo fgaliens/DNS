@@ -4,6 +4,7 @@ using Charon.Dns.Lib.AsyncEvents;
 using Charon.Dns.Lib.Server;
 using Charon.Dns.RequestResolving;
 using Charon.Dns.Settings;
+using Charon.Dns.Utils;
 using Serilog;
 
 namespace Charon.Dns;
@@ -16,6 +17,8 @@ public class SmartDnsServer(
     CacheSettings cacheSettings,
     ILogger logger)
 {
+    private static readonly RequestCounter RequestCounter = new();
+    
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     
     public async Task Start()
@@ -36,7 +39,7 @@ public class SmartDnsServer(
             masterFile,
             smartRequestResolver);
         
-        var server = new DnsServer(requestResolvers);
+        var server = new DnsServer(requestResolvers, RequestCounter, logger);
         server.Subscribe(AsyncObserver.Create<OnExceptionEventArgs>(eventArgs =>
         {
             logger.Error(eventArgs.Exception, "Error occured");
