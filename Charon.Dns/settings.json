@@ -19,7 +19,7 @@
       }
     ],
     "DnsChain": {
-      "ResolvingConcurrencyLimit": 20,
+      "ResolvingConcurrencyLimit": 2,
       "DefaultServers": [
         "77.88.8.8",
         "1.0.0.1",

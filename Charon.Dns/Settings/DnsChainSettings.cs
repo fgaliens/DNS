@@ -13,7 +13,7 @@ public record DnsChainSettings : ISettings<DnsChainSettings>
     public static DnsChainSettings Initialize(IConfiguration config)
     {
         var dnsChainConfig = config.GetSection("Server:DnsChain");
-        var resolvingConcurrencyLimit = dnsChainConfig.GetSectionValue("ResolvingConcurrencyLimit", 20);
+        var resolvingConcurrencyLimit = dnsChainConfig.GetSectionValue("ResolvingConcurrencyLimit", 2);
         resolvingConcurrencyLimit = Math.Max(0, resolvingConcurrencyLimit);
         var defaultServers = dnsChainConfig
             .GetSection("DefaultServers")

@@ -22,9 +22,9 @@ public class UdpRequestResolver : IRequestResolver
     private readonly IRequestResolver? _fallback;
     private readonly ConcurrentQueue<Socket> _availableSockets = new();
     private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Shared;
-    private ulong _returnedSocketsCounter;
     private readonly IConcurrencyLimiter _concurrencyLimiter;
     private readonly int _concurrencyLimit;
+    private ulong _returnedSocketsCounter;
 
     public UdpRequestResolver(
         IPEndPoint dnsEndpoint, 
@@ -116,8 +116,8 @@ public class UdpRequestResolver : IRequestResolver
                 var senderIp = (responseInfo.RemoteEndPoint as IPEndPoint)?.Address.MapToIPv6();
                 if (!_dnsEndpoint.Address.MapToIPv6().Equals(senderIp))
                 {
-                    logger.Warning("Remote endpoint mismatch. Expected response from {DNS}, received from {RemoteEndPoint}",
-                        _dnsEndpoint, senderIp);
+                    logger.Warning("Remote endpoint mismatch. Expected response from {DNS}, received from {RemoteEndPoint}. (ID: {TraceId})",
+                        _dnsEndpoint, senderIp, request.Id);
                     continue;
                 }
 
