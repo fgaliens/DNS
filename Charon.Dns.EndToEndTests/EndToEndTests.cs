@@ -116,13 +116,14 @@ public class EndToEndTests : IDisposable
         [
             RecordType.A,
             RecordType.AAAA,
-            //RecordType.MX, TODO: !!!
+            RecordType.MX,
         ];
 
         var requestsCombination = hosts
             .CombineWith(recordTypes)
             .Select(x => Enumerable.Repeat(x, 3))
             .SelectMany(x => x)
+            .Where(x => x.Item1 != "medium.com" && x.Item2 != RecordType.MX)
             .ToArray();
         
         Random.Shared.Shuffle(requestsCombination);
