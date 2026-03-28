@@ -1,11 +1,13 @@
 using System.Net;
 using Charon.Dns.Extensions;
+using Charon.Dns.RequestResolving.ResolvingStrategies;
 using Microsoft.Extensions.Configuration;
 
 namespace Charon.Dns.Settings;
 
 public record DnsChainSettings : ISettings<DnsChainSettings>
 {
+    public required ResolvingStrategy ResolvingStrategy { get; init; }
     public required int ResolvingConcurrencyLimit { get; init; }
     public required IReadOnlyCollection<IPAddress> DefaultServers { get; init; }
     public required IReadOnlyCollection<SecuredServerSettingsItem> SecuredServers { get; init; }
@@ -13,6 +15,7 @@ public record DnsChainSettings : ISettings<DnsChainSettings>
     public static DnsChainSettings Initialize(IConfiguration config)
     {
         var dnsChainConfig = config.GetSection("Server:DnsChain");
+        var resolvingStrategy = dnsChainConfig.GetSectionEnumValue("ResolvingStrategy", ResolvingStrategy.RoundRobin);
         var resolvingConcurrencyLimit = dnsChainConfig.GetSectionValue("ResolvingConcurrencyLimit", 2);
         resolvingConcurrencyLimit = Math.Max(0, resolvingConcurrencyLimit);
         var defaultServers = dnsChainConfig
@@ -32,6 +35,7 @@ public record DnsChainSettings : ISettings<DnsChainSettings>
 
         return new DnsChainSettings
         {
+            ResolvingStrategy = resolvingStrategy,
             ResolvingConcurrencyLimit = resolvingConcurrencyLimit,
             DefaultServers = defaultServers,
             SecuredServers = securedServers,

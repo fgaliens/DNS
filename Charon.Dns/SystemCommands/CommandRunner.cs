@@ -8,7 +8,8 @@ namespace Charon.Dns.SystemCommands;
 
 public class CommandRunner(ILogger globalLogger) : ICommandRunner
 {
-    public async Task<bool> Execute<T>(T command,
+    public async Task<bool> Execute<T>(
+        T command,
         RequestTrace trace,
         CancellationToken token = default)
         where T : ICommand
@@ -30,14 +31,14 @@ public class CommandRunner(ILogger globalLogger) : ICommandRunner
             return true;
 #endif
 
-            var procStartInfo = new ProcessStartInfo("/bin/bash", $"-c \"{commandText}\"")
+            var processStartInfo = new ProcessStartInfo("/bin/bash", $"-c \"{commandText}\"")
             {
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
 
             using var process = new Process();
-            process.StartInfo = procStartInfo;
+            process.StartInfo = processStartInfo;
             process.Start();
             await process.WaitForExitAsync(token);
 

@@ -19,6 +19,7 @@
       }
     ],
     "DnsChain": {
+      "ResolvingStrategy": "RoundRobin",
       "ResolvingConcurrencyLimit": 2,
       "DefaultServers": [
         "77.88.8.8",

@@ -3,6 +3,7 @@ using System.Net;
 using Charon.Dns.Lib.Client.RequestResolver;
 using Charon.Dns.Lib.Protocol;
 using Charon.Dns.Lib.Tracing;
+using Charon.Dns.RequestResolving.ResolvingStrategies;
 using Charon.Dns.Utils;
 
 namespace Charon.Dns.RequestResolving;
@@ -11,11 +12,16 @@ public class RequestResolverBase : IRequestResolver
 {
     private const int DefaultDnsPort = 53; 
         
+    private readonly IResolvingStrategy _resolvingStrategy;
     private readonly UdpRequestResolver[] _innerResolvers;
     private readonly RequestCounter _counter = new();
         
-    public RequestResolverBase(IEnumerable<IPAddress> chainDnsServers, int requestConcurrencyLimit)
+    public RequestResolverBase(
+        IResolvingStrategy resolvingStrategy,
+        IEnumerable<IPAddress> chainDnsServers, 
+        int requestConcurrencyLimit)
     {
+        _resolvingStrategy = resolvingStrategy;
         _innerResolvers = chainDnsServers
             .Select(x => new UdpRequestResolver(new IPEndPoint(x, DefaultDnsPort), requestConcurrencyLimit))
             .ToArray();
@@ -32,16 +38,11 @@ public class RequestResolverBase : IRequestResolver
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            // TODO: Remove
-            var resolverIndex = _counter.Increment() % (ulong)_innerResolvers.Length;
-            return await _innerResolvers[resolverIndex]
-                .Resolve(request, trace, cancellationToken);
-            
-            //TODO: uncomment
-            // var responseTasks = _innerResolvers.Select(x => 
-            //     x.Resolve(request, trace, cancellationToken));
-            // var response = await Task.WhenAny(responseTasks);
-            // return await response;
+            return await _resolvingStrategy.Resolve(
+                _innerResolvers,
+                request,
+                trace,
+                cancellationToken);
         }
         finally
         {

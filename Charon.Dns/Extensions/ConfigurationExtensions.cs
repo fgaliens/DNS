@@ -69,4 +69,17 @@ public static class ConfigurationExtensions
         
         return value;
     }
+    
+    public static T GetSectionEnumValue<T>(this IConfigurationSection section, string key, T defaultValue) where T : struct, Enum
+    {
+        var rawValue = section.GetSection(key).Value;
+        if (Enum.TryParse<T>(rawValue, out var value)
+            && Enum.IsDefined(value))
+        { 
+            return value; 
+        }
+            
+        return defaultValue;
+        
+    }
 }
